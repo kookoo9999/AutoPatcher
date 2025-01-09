@@ -15,61 +15,135 @@
         </CollectionViewSource>
     </Window.Resources>
     <Grid>
-        <DataGrid x:Name="DataGrid"
+        <StackPanel Orientation="Vertical">
+            <StackPanel Orientation="Horizontal" Margin="10,5,0,0">
+                <RadioButton x:Name="rdLF"  Content="LF"  Margin="0,0,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[0],Mode=TwoWay}"></RadioButton>
+                <RadioButton x:Name="rdSII" Content="SII" Margin="5,0,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[1],Mode=TwoWay}"></RadioButton>
+                <RadioButton x:Name="rdBGA" Content="BGA" Margin="5,0,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[2],Mode=TwoWay}"></RadioButton>
+                <RadioButton x:Name="rdCOB" Content="COB" Margin="5,0,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[3],Mode=TwoWay}"></RadioButton>
+            </StackPanel>
+            <DataGrid x:Name="DataGrid"
                   AutoGenerateColumns="False"
                   IsReadOnly="False"
                   CanUserAddRows="False"
-                  Margin="10,10,10,364"
+                  Margin="10,5,10,0"
                   HorizontalScrollBarVisibility="Auto"
                   VerticalScrollBarVisibility="Auto"
                   HeadersVisibility="Column"
-                  ItemsSource="{Binding Source={StaticResource GroupedData}}">
+                  Height="250"
+                  ItemsSource="{Binding Path=Groups, Source={StaticResource GroupedData}}" >
+                
+                <DataGrid.GroupStyle>
+                    <GroupStyle>
+                        <GroupStyle.HeaderTemplate>
+                            <DataTemplate>
+                                <!-- Group Header Template -->
+                                <TextBlock Text="{Binding Name}" FontWeight="Bold" Padding="5" />
+                            </DataTemplate>
+                        </GroupStyle.HeaderTemplate>
+                    </GroupStyle>
+                </DataGrid.GroupStyle>
 
-            <DataGrid.GroupStyle>
-                <GroupStyle>
-                    <GroupStyle.HeaderTemplate>
-                        <DataTemplate>
-                            <!-- Group Header Template -->
-                            <TextBlock Text="{Binding Name}" FontWeight="Bold" Padding="5" />
-                        </DataTemplate>
-                    </GroupStyle.HeaderTemplate>
-                </GroupStyle>
-            </DataGrid.GroupStyle>
+                <DataGrid.Columns>                    
+                    <!-- Other Columns -->
+                    <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="100" />
 
-            <DataGrid.Columns>
-                <!-- CheckBox Column -->
-                <DataGridTemplateColumn Header="Select" Width="50">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <CheckBox HorizontalAlignment="Center" IsChecked="{Binding IsSelected}" />
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
 
-                <!-- Other Columns -->
-                <DataGridTextColumn Header="Group"  Binding="{Binding Group}" Width="100" />
-                <DataGridTextColumn Header="Server" Binding="{Binding Server}" Width="150" />
-                <DataGridTextColumn Header="Local IP" Binding="{Binding LocalIP}" Width="120" />
-                <DataGridTextColumn Header="Machine" Binding="{Binding InspectionUnit}" Width="120" />
-                <DataGridTextColumn Header="Main IP" Binding="{Binding PC1}" Width="120" />
-                <DataGridTextColumn Header="Vision1 IP" Binding="{Binding PC2}" Width="120" />
-                <DataGridTextColumn Header="Vision2 IP" Binding="{Binding PC3}" Width="120" />
-                <DataGridTextColumn Header="Vision3 IP" Binding="{Binding PC4}" Width="120" />
-            </DataGrid.Columns>
-        </DataGrid>
+                    <!--<DataGridTextColumn Header="Server" Binding="{Binding Server}" Width="150" />
+                    <DataGridTextColumn Header="Local IP" Binding="{Binding LocalIP}" Width="120" />-->
+                    <DataGridTextColumn Header="Machine" Binding="{Binding InspectionUnit}" Width="120" />
+                    <!--<DataGridTextColumn Header="Main IP" Binding="{Binding PC1}" Width="120" />-->
+                    <DataGridTemplateColumn Header="Main">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox IsChecked="{Binding MainSelected}" Name="chkMain" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked" ></CheckBox>
+                                    <TextBlock Text="{Binding PC1}" Width="120"></TextBlock>                                    
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <!--<DataGridTextColumn Header="Vision1 IP" Binding="{Binding PC2}" Width="120" />-->
+                    <DataGridTemplateColumn Header="Vision 1">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox IsChecked="{Binding V1Selected}" Name="chkV1" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked"></CheckBox>
+                                    <TextBlock Text="{Binding PC2}" Width="120"></TextBlock>                                    
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <!--<DataGridTextColumn Header="Vision2 IP" Binding="{Binding PC3}" Width="120" />-->
+                    <DataGridTemplateColumn Header="Vision 2">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox IsChecked="{Binding V2Selected}" Name="chkV2" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked"></CheckBox>
+                                    <TextBlock Text="{Binding PC3}" Width="120"></TextBlock>                                    
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <!--<DataGridTextColumn Header="Vision3 IP" Binding="{Binding PC4}" Width="120" />-->
+                    <DataGridTemplateColumn Header="Vision 3">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox IsChecked="{Binding V3Selected}" Name="chkV3" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked"></CheckBox>
+                                    <TextBlock Text="{Binding PC4}" Width="120"></TextBlock>                                    
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    
+                </DataGrid.Columns>
+            </DataGrid>
 
-        <!-- Button to Select Folder -->
-        <Button x:Name="SelectFolderButton" 
-                Content="Select Folder" 
-                Width="100" 
-                Height="30" 
-                Margin="10,293,0,0" 
+            <!-- ListBox to Display Files -->
+            <ListBox x:Name="FileListBox" Margin="10,20,0,0" Height="200" />
+
+            <StackPanel Orientation="Vertical" Margin="10,10,0,0">
+                
+                <!--select excel-->
+                <StackPanel Orientation="Horizontal" Height="30" Margin="5,5,0,0">
+                    <Button x:Name="btnLoadExcel"
+                    Content="Load Excel" Width="80" Height="30"
+                    VerticalAlignment="Top" 
+                    HorizontalAlignment="Left"
+                    Click = "btnLoadExcel_Click"
+                    FontSize="13"/>
+                    <Label x:Name="lblCurExcel" Content="D:\" Margin="12,0,0,0"/>
+                </StackPanel>
+
+                <!--set patch folder-->
+                <StackPanel Orientation="Horizontal" Margin="5,5,0,0" >
+                    <!-- Button to Select Folder -->
+                    <Button x:Name="SelectFolderButton" 
+                Content="Patch Folder"                 
+                Width="80" 
+                Height="30"                  
                 VerticalAlignment="Top" 
                 HorizontalAlignment="Left"
-                Click="SelectFolderButton_Click" />
-
-        <!-- ListBox to Display Files -->
-        <ListBox x:Name="FileListBox" 
-                 Margin="124,293,10,53" />
+                Click="SelectFolderButton_Click" 
+                FontSize="13"/>
+                    <Label x:Name="lblCurDir" Content="D:\" Margin="13,0,0,0"/>
+                </StackPanel>
+                
+                <!--run patch-->                
+                <StackPanel Orientation="Horizontal" Height="30" Margin="5,5,0,0">
+                    <Button x:Name="btnRunPatch" Content="Apply" Width="80" Height="30"  
+                VerticalAlignment="Top" 
+                HorizontalAlignment="Left" Click="btnRunPatch_Click"/>
+                    <Label Name="lblStatus" Content="Status : " Margin="12,0,0,0"></Label>
+                </StackPanel>                    
+                
+                
+            </StackPanel>
+        </StackPanel>
+        
+        
+        
+        
     </Grid>
 </Window>
