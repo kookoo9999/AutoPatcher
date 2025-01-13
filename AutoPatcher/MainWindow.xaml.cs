@@ -22,6 +22,9 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.Win32;
 using System.IO.Compression;
+using System.Reflection;
+using System.Resources;
+using System.Net.NetworkInformation;
 
 namespace AutoPatcher
 {
@@ -32,15 +35,33 @@ namespace AutoPatcher
     {
         #region member
 
+        enum TYPE{ MAIN=0,V1,V2,V3 };
+
         #region radio button (LF,SII,BGA,COB)
         private bool[] _ModeArray = new bool[4] {true,false,false,false};
         public bool[] ModeArray { get { return _ModeArray; } }
         public int SelectedMode { get { return Array.IndexOf(_ModeArray,true); } }
         #endregion
 
+        #region radio button (Main,Vision)
         private bool[] _TypeArray = new bool[2];
         public bool[] TypeArray { get { return _TypeArray; } }
         public int SelectType { get { return Array.IndexOf(_TypeArray,true); } }
+        #endregion
+
+
+        #region set all check (main,vision1,2,3)
+        private bool[] _isAllSelected = new bool[4];
+        public bool[] IsAllSelected 
+        { 
+            get { return _isAllSelected; }
+            set 
+            {
+                
+            }
+        }
+        public int AllSelected { get { return Array.IndexOf(_isAllSelected,true); } }
+        #endregion
 
         public ObservableCollection<RowData> DataGridItems { get; private set; }
         public ObservableCollection<string> FileList { get; set; }
@@ -57,6 +78,13 @@ namespace AutoPatcher
         {
             get { return _strType; }
             set { _strType = value; }
+        }
+
+        private string _strMode;
+        public string ModeType
+        {
+            get { return _strMode; }
+            set { _strMode = value; }
         }
 
         // IP 리스트 (로컬 네트워크 상의 PC들)
@@ -112,12 +140,25 @@ namespace AutoPatcher
             //SetupDataGridGrouping();
             DataGrid.ItemsSource = DataGridItems;            
             FileListBox.ItemsSource = FileList;
+            
         }
 
         public void Initialize()
         {
             DataGridItems.Clear();
             IPAddresses.Clear();
+        }
+
+        public void SetMessage(string msg)
+        {
+            this.lblStatus.Content = msg;
+            this.lblStatus.Foreground = new SolidColorBrush(Colors.Black);
+        }
+
+        public void SetWarnning(string msg)
+        {
+            this.lblStatus.Content = msg;
+            this.lblStatus.Foreground = new SolidColorBrush(Colors.Red);
         }
 
         public  bool StartAutoPatch()
@@ -149,38 +190,58 @@ namespace AutoPatcher
             foreach (string ip in IPAddresses)
             {
                 string strPCtype = PCType; //"Main" vision
-                string remotePath = $@"\\{ip}\\d\\{strPCtype}";
-                string remoteTempPath = $@"\\{ip}\\d\\{PCType.ToLower()}";
+                string diskType = "D";
+                string remotePath = "";
+                string remoteTempPath = $@"\\{ip}\\{diskType}\\{PCType.ToLower()}";
+                string[] remotePathList =
+                {
+                      $@"\\{ip}\\{diskType}\\{strPCtype.ToLower()}",           // D: main,vision
+                      $@"\\{ip}\\{diskType}\\{strPCtype}",                     // D: Main,Vision
+                      $@"\\{ip}\\{diskType.ToLower()}\\{strPCtype.ToLower()}", // d: main,vision
+                      $@"\\{ip}\\{diskType.ToLower()}\\{strPCtype}",           // d: Main,Vision
+                };
+
+                try 
+                {
+                    foreach (string path in remotePathList)
+                    {
+                        if (Directory.Exists(path)) remotePath = path;
+                    }
+                }
+                catch
+                {
+                    MessageBox.Show("Does not exist path");
+                    SetWarnning("Does not exist path");
+                }
+
                 string remoteFolderPath = remotePath+"\\bin";
                 string remoteBackupPath = remotePath+"\\backup";
-                string remoteConfigPAth = remotePath + "\\config";
-                string[] BackupPathList = { remoteFolderPath, remoteConfigPAth };
-
-                lblStatus.Content = $"access to [{ip}]...";
+                string remoteConfigPath = remotePath + "\\config";
+                string[] BackupPathList = { remoteFolderPath, remoteConfigPath };
+                
+                SetMessage($"access to [{ip}]...");
                 Debug.WriteLine($"[{ip}] 접근 중...");
 
                 try
                 {
-                    #region set pc type(main,vision)                    
-                    if (!Directory.Exists(remotePath))
+                    if(!GetPingResult(ip))
                     {
-                        if (Directory.Exists(remoteTempPath))
-                        {
-                            remotePath = remoteTempPath;
-                        }
-                    }                    
-                    #endregion
-
+                        SetWarnning($"No response {ip}");
+                        MessageBox.Show($"No respose {ip}");
+                        continue;
+                    }
+                    
                     #region check process running
                     // 프로그램 실행 중 확인
                     if (IsProgramRunning(ip, ProcessNameToCheck))
                     {
-                        lblStatus.Content = $"[{ip}] program is running : Waiting for exit {ProcessNameToCheck}...";
+                        SetMessage($"[{ip}] P/G is running : Waiting for exit {ProcessNameToCheck}...");
                         Debug.WriteLine($"[{ip}] 프로그램 실행 중: {ProcessNameToCheck}. 종료를 기다립니다...");
                         WaitForProcessToExit(ip, ProcessNameToCheck, timeoutSeconds: 120);
                     }
                     else
                     {
+                        SetMessage($"[{ip}] : P/G is not running. Do patch..");
                         Debug.WriteLine($"[{ip}] 프로그램이 실행 중이 아닙니다. 패치 진행.");
                     }
                     #endregion
@@ -188,9 +249,9 @@ namespace AutoPatcher
                     #region backup
                     foreach(string strBackUpPath in BackupPathList)
                     {
-                        lblStatus.Content = $"[{strBackUpPath}] back up..";
-                        if (!BackupFolder(strBackUpPath, remoteBackupPath))
-                            lblStatus.Content = $"{strBackUpPath} dosen't exist";
+                        SetMessage($"[{ip}] _ [{strBackUpPath}] back up..");
+                        if (!CheckBackupFolder(strBackUpPath, remoteBackupPath))
+                            SetWarnning($"{strBackUpPath} dosen't exist");
                     }
                     #endregion
 
@@ -206,13 +267,13 @@ namespace AutoPatcher
                     // 파일 업데이트 작업
                     foreach (string fileName in FilesToCheck)
                     {
-                        lblStatus.Content = $"Patching {fileName} ..";
+                        SetMessage($"[{ip}] _ Patching {fileName} ..");
                         string localFilePath = System.IO.Path.Combine(SourceDirectory, fileName);
                         string remoteFilePath = System.IO.Path.Combine(remoteFolderPath, fileName);
 
                         if (!File.Exists(remoteFilePath))
                         {
-                            Debug.WriteLine($"[{ip}] 원격 파일 없음: {fileName}. 건너뜁니다.");
+                            Debug.WriteLine($"[{ip}] 원격 파일 없음: {fileName}.");
                             continue;
                         }
 
@@ -240,7 +301,23 @@ namespace AutoPatcher
             return true;
         }
 
-
+        private bool GetPingResult(string desIP)
+        {
+            try
+            {                
+                using (Ping ping = new Ping())
+                {                    
+                    PingReply reply = ping.Send(desIP, 5000); // 5000ms
+                                        
+                    return reply.Status == IPStatus.Success;
+                }
+            }
+            catch (Exception ex)
+            {                
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+        }
         public string GetRelativePath(string basePath, string targetPath)
         {
             FileAttributes fa = File.GetAttributes(targetPath);
@@ -316,32 +393,24 @@ namespace AutoPatcher
         // 원격 프로그램 실행 여부 확인 (wmic로 수정필요)
         bool IsProgramRunning(string ip, string processName)
         {
-            string command = $"Get-Process -Name {processName} -ComputerName {ip}";
-            ProcessStartInfo psi = new ProcessStartInfo
-            {
-                FileName = "powershell.exe",
-                Arguments = $"-Command \"{command}\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
+            string remoteName = @"\\" + ip + @"\root\cimv2";
 
-            using (Process process = Process.Start(psi))
-            {
-                string output = process.StandardOutput.ReadToEnd();
-                string error = process.StandardError.ReadToEnd();
+            ConnectionOptions con = new ConnectionOptions();
+            ResourceManager rscManager = new ResourceManager("AutoPatcher.Resource.UserInfo",typeof(MainWindow).Assembly);
 
-                process.WaitForExit();
-                if (!string.IsNullOrEmpty(error))
-                {
-                    lblStatus.Content = $"PowerShell 오류: {error}";
-                    Debug.WriteLine($"PowerShell 오류: {error}");
-                    return false;
-                }
+            con.Username= rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_ID");            
+            con.Password = rscManager.GetString($"{ModeType}_{PCType}_PW"); 
 
-                return !string.IsNullOrEmpty(output);
-            }
+            ManagementScope managementScope = new ManagementScope(remoteName, con);
+            managementScope.Options.Authentication = AuthenticationLevel.PacketPrivacy;
+            managementScope.Connect();
+            ObjectQuery objectQuery = new ObjectQuery($"SELECT * FROM Win32_Process Where Name = '{processName}'");
+            ManagementObjectSearcher managementObjectSearcher = new ManagementObjectSearcher(managementScope, objectQuery);
+            ManagementObjectCollection managementObjectCollection = managementObjectSearcher.Get();
+            if (managementObjectCollection.Count > 0) return true;
+
+            return false;
+            
             //try
             //{
             //    string query = $"SELECT * FROM Win32_Process WHERE Name LIKE '{processName}.exe'";
@@ -371,10 +440,11 @@ namespace AutoPatcher
             {
                 if (waitedSeconds >= timeoutSeconds)
                 {
+                    SetWarnning($"[{ip}] 타임아웃: {processName} 종료를 기다리는 동안 시간이 초과되었습니다.");
                     Debug.WriteLine($"[{ip}] 타임아웃: {processName} 종료를 기다리는 동안 시간이 초과되었습니다.");
                     break;
                 }
-
+                SetMessage($"[{ip}] {processName} 실행 중... {waitedSeconds + 1}초 대기.");
                 Debug.WriteLine($"[{ip}] {processName} 실행 중... {waitedSeconds + 1}초 대기.");
                 System.Threading.Thread.Sleep(1000);
                 waitedSeconds++;
@@ -422,7 +492,7 @@ namespace AutoPatcher
             return local.CompareTo(remote) > 0;
         }
 
-        public bool BackupFolder(string src, string des)
+        public bool CheckBackupFolder(string src, string des)
         {
 
             if (string.IsNullOrEmpty(src) || string.IsNullOrEmpty(des))
@@ -463,7 +533,7 @@ namespace AutoPatcher
                 Directory.CreateDirectory(targetDir);
             }
 
-            // 압축된 파일 이름은 소스 디렉터리의 이름 + .zip 확장자를 사용
+            // 압축된 파일 이름은 소스 디렉터리의 이름 + .zip 
             string zipFilePath = System.IO.Path.Combine(targetDir, DateTime.Now.ToString("yyMMdd") + "_back.zip");
 
             if(File.Exists(zipFilePath))
@@ -485,7 +555,7 @@ namespace AutoPatcher
             //string backupFilePath = System.IO.Path.Combine(backupPath, fileName);
             //File.Move(remoteFilePath, backupFilePath);
             File.Copy(localFilePath, remoteFilePath);
-            lblStatus.Content = $"[{remoteFolderPath}] 업데이트 완료: {fileName}";
+            SetMessage($"[{remoteFolderPath}] 업데이트 완료: {fileName}");
             Debug.WriteLine($"[{remoteFolderPath}] 업데이트 완료: {fileName}");
         }
 
@@ -551,6 +621,12 @@ namespace AutoPatcher
         private void SelectFolderButton_Click(object sender, RoutedEventArgs e)
         {
             // Use FolderBrowserDialog to select a folder
+            if (string.IsNullOrEmpty(ProcessNameToCheck))
+            {
+                SetWarnning("Set the process name");
+                MessageBox.Show("Set the process name");
+                return;
+            }
             using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
             {
                 System.Windows.Forms.DialogResult result = dialog.ShowDialog();
@@ -561,6 +637,7 @@ namespace AutoPatcher
                     LoadFilesFromFolder(dialog.SelectedPath);
                     lblCurDir.Content = dialog.SelectedPath;
                 }
+                SetMessage("Loaded patch lsit");
             }
         }
 
@@ -576,11 +653,11 @@ namespace AutoPatcher
             {   
                 if(dlg.CheckFileExists==true)
                 {
-                    lblStatus.Content = "Loading...";
+                    SetMessage("Loading...");
                     ExcelPath = dlg.FileName;
                     LoadExcelData(dlg.FileName);
                     lblCurExcel.Content = dlg.FileName;
-                    lblStatus.Content = "Loaded";
+                    SetMessage("Loaded patch list");
                 }                
             }
         }
@@ -588,7 +665,7 @@ namespace AutoPatcher
         private void LoadFilesFromFolder(string folderPath)
         {
             try
-            {
+            {   
                 // Clear previous files
                 FileList.Clear();
                 FilesToCheck.Clear();
@@ -610,6 +687,8 @@ namespace AutoPatcher
                 var res = GetFileListFromDirectory(SourceDirectory);
                 FilesToCheck = res.files;
                 FoldersToCheck = res.folders;
+                
+                
             }
             catch (Exception ex)
             {
@@ -622,10 +701,20 @@ namespace AutoPatcher
             if (SelectedMode == -1)
             {
                 MessageBox.Show("패치할 작업을 선택해주세요");
+                SetWarnning("Select a patch node");
                 return;
             }
-            lblStatus.Content = "Start Patching";
-            if (StartAutoPatch()) lblStatus.Content = "Complete";
+
+            var tempres = FilesToCheck.Find(x => x.Contains(ProcessNameToCheck));
+            //if (string.IsNullOrEmpty(tempres))
+            //{
+            //    SetWarnning(string.Format("Does not including process {0}", ProcessNameToCheck));
+            //    MessageBox.Show(string.Format("Does not including process {0}", ProcessNameToCheck));
+            //    return;
+            //}
+
+            SetMessage("Start Patching");
+            if (StartAutoPatch()) SetMessage("Complete");
         }
 
         private void CheckBox_Checked(object sender, RoutedEventArgs e)
@@ -661,6 +750,80 @@ namespace AutoPatcher
             
         }
 
+        private void AllCheckbox_checked(object sender, RoutedEventArgs e)
+        {
+            var checkBox = sender as CheckBox;
+            bool flag = (checkBox.IsChecked == true) ? true : false;  
+            if(checkBox.Name.Contains("Main"))
+            {
+                foreach (var item in DataGridItems)
+                {
+                    item.MainSelected = flag;                    
+                }
+            }
+            else if(checkBox.Name.Contains("V1"))
+            {
+                foreach (var item in DataGridItems)
+                {
+                    item.V1Selected = flag;                    
+                }
+            }
+            else if(checkBox.Name.Contains("V2"))
+            {
+                foreach (var item in DataGridItems)
+                {
+                    item.V2Selected = flag;
+                   
+                }
+            }
+            else if(checkBox.Name.Contains("V3"))
+            {
+                foreach (var item in DataGridItems)
+                {
+                    item.V3Selected = flag;                    
+                }
+            }          
+
+        }
+
+        private void AllCheckbox_unchecked(object sender,RoutedEventArgs e)
+        {
+            var checkBox = sender as CheckBox;
+
+            if (checkBox.Name.Contains("Main"))
+            {
+                foreach (var item in DataGridItems)
+                {
+                    item.MainSelected = false;
+                    IPAddresses.Add(item.PC1);
+                }
+            }
+            else if (checkBox.Name.Contains("V1"))
+            {
+                foreach (var item in DataGridItems)
+                {
+                    item.V1Selected = true;
+                    IPAddresses.Add(item.PC2);
+                }
+            }
+            else if (checkBox.Name.Contains("V2"))
+            {
+                foreach (var item in DataGridItems)
+                {
+                    item.V2Selected = true;
+                    IPAddresses.Add(item.PC3);
+                }
+            }
+            else if (checkBox.Name.Contains("V3"))
+            {
+                foreach (var item in DataGridItems)
+                {
+                    item.V3Selected = true;
+                    IPAddresses.Add(item.PC4);
+                }
+            }
+        }
+
         private void Radiobutton_Checked(object sender, RoutedEventArgs e)
         {
             var btn = sender as RadioButton;
@@ -672,18 +835,33 @@ namespace AutoPatcher
 
                 if (btn.Name.Contains("LF"))
                 {
+                    ModeType = "LF";
                     _ModeArray[0] = true;
                 }
-                else if (btn.Name.Contains("SII")) _ModeArray[1] = true;
-                else if (btn.Name.Contains("BGA")) _ModeArray[2] = true;
-                else if (btn.Name.Contains("COB")) _ModeArray[3] = true;
-
+                else if (btn.Name.Contains("SII"))
+                {
+                    ModeType = "SII";
+                    _ModeArray[1] = true;
+                }
+                
+                else if (btn.Name.Contains("BGA"))
+                {
+                    ModeType = "BGA";
+                    _ModeArray[2] = true;
+                }
+                
+                else if (btn.Name.Contains("COB"))
+                {
+                    ModeType = "COB";
+                    _ModeArray[3] = true;
+                }
+                
                 if (!string.IsNullOrEmpty(ExcelPath))
                 {
-                    lblStatus.Content = $"loading ...";
+                    SetMessage($"Loading ...");
                     Initialize();
                     LoadExcelData(ExcelPath);
-                    lblStatus.Content = $"loaded";
+                    SetMessage($"Loaded machin list");
                 }
             }
             #endregion
@@ -711,6 +889,43 @@ namespace AutoPatcher
             #endregion
         }
 
+        private void chkMainAll_Checked(object sender, RoutedEventArgs e)
+        {
+            var checkBox = sender as CheckBox;
+
+            if (checkBox.Name.Contains("Main"))
+            {
+                foreach (var item in DataGridItems)
+                {
+                    item.MainSelected = false;
+                    IPAddresses.Add(item.PC1);
+                }
+            }
+            else if (checkBox.Name.Contains("V1"))
+            {
+                foreach (var item in DataGridItems)
+                {
+                    item.V1Selected = true;
+                    IPAddresses.Add(item.PC2);
+                }
+            }
+            else if (checkBox.Name.Contains("V2"))
+            {
+                foreach (var item in DataGridItems)
+                {
+                    item.V2Selected = true;
+                    IPAddresses.Add(item.PC3);
+                }
+            }
+            else if (checkBox.Name.Contains("V3"))
+            {
+                foreach (var item in DataGridItems)
+                {
+                    item.V3Selected = true;
+                    IPAddresses.Add(item.PC4);
+                }
+            }
+        }
     }
     public class RowData : INotifyPropertyChanged
     {
