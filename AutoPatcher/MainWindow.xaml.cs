@@ -25,6 +25,7 @@ using System.IO.Compression;
 using System.Reflection;
 using System.Resources;
 using System.Net.NetworkInformation;
+using System.Windows.Forms;
 
 namespace AutoPatcher
 {
@@ -35,7 +36,7 @@ namespace AutoPatcher
     {
         #region member
 
-        enum TYPE{ MAIN=0,V1,V2,V3 };
+        
 
         #region radio button (LF,SII,BGA,COB)
         private bool[] _ModeArray = new bool[4] {true,false,false,false};
@@ -51,15 +52,8 @@ namespace AutoPatcher
 
 
         #region set all check (main,vision1,2,3)
-        private bool[] _isAllSelected = new bool[4];
-        public bool[] IsAllSelected 
-        { 
-            get { return _isAllSelected; }
-            set 
-            {
-                
-            }
-        }
+        private bool[] _isAllSelected = new bool[4] { false, false, false, false };
+        public bool[] IsAllSelected { get { return _isAllSelected; } }
         public int AllSelected { get { return Array.IndexOf(_isAllSelected,true); } }
         #endregion
 
@@ -126,6 +120,10 @@ namespace AutoPatcher
             get { return _foldersToCheck; }
             set { _foldersToCheck = value; }
         }
+
+        double originWidth,originHeight;
+        ScaleTransform scale=new ScaleTransform();
+
         #endregion
 
         public MainWindow()
@@ -141,6 +139,33 @@ namespace AutoPatcher
             DataGrid.ItemsSource = DataGridItems;            
             FileListBox.ItemsSource = FileList;
             
+        }
+
+        void MainWindow_Loaded(object sender,RoutedEventArgs e)
+        {            
+            originHeight = this.Height;
+            originWidth = this.Width;
+            if(this.WindowState == WindowState.Maximized)
+            {
+                ChangeSize(this.ActualWidth,this.ActualHeight);
+            }
+            this.SizeChanged += new SizeChangedEventHandler(MainWindow_SizeChanged);
+        }
+
+
+        void MainWindow_SizeChanged(object sender,SizeChangedEventArgs e)
+        {
+            ChangeSize(e.NewSize.Width,e.NewSize.Height);
+        }
+        
+
+        private void ChangeSize(double width,double height)
+        {
+            scale.ScaleX = width / originWidth;
+            scale.ScaleY = height / originHeight;
+
+            FrameworkElement rootElement = this.Content as FrameworkElement;
+            rootElement.LayoutTransform = scale;
         }
 
         public void Initialize()
@@ -161,17 +186,17 @@ namespace AutoPatcher
             this.lblStatus.Foreground = new SolidColorBrush(Colors.Red);
         }
 
-        public  bool StartAutoPatch()
+        public bool StartAutoPatch()
         {
             if (SourceDirectory == null)
             {
-                MessageBox.Show("패치파일이 들어있는 폴더가 지정되지 않았습니다");
+                System.Windows.MessageBox.Show("패치파일이 들어있는 폴더가 지정되지 않았습니다");
                 return false;
             }
             
             if(IPAddresses.Count == 0)
             {
-                MessageBox.Show("패치할 설비가 지정되지 않았습니다");
+                System.Windows.MessageBox.Show("패치할 설비가 지정되지 않았습니다");
                 return false;
             }
 
@@ -179,7 +204,7 @@ namespace AutoPatcher
             {
                 if(string.IsNullOrEmpty(SourceDirectory))
                 {
-                    MessageBox.Show("패치할 파일 및 폴더가 지정되지 않았습니다");
+                    System.Windows.MessageBox.Show("패치할 파일 및 폴더가 지정되지 않았습니다");
                     return false;
                 }
                 var res = GetFileListFromDirectory(SourceDirectory);
@@ -195,13 +220,16 @@ namespace AutoPatcher
                 string remoteTempPath = $@"\\{ip}\\{diskType}\\{PCType.ToLower()}";
                 string[] remotePathList =
                 {
-                      $@"\\{ip}\\{diskType}\\{strPCtype.ToLower()}",           // D: main,vision
-                      $@"\\{ip}\\{diskType}\\{strPCtype}",                     // D: Main,Vision
-                      $@"\\{ip}\\{diskType.ToLower()}\\{strPCtype.ToLower()}", // d: main,vision
-                      $@"\\{ip}\\{diskType.ToLower()}\\{strPCtype}",           // d: Main,Vision
+                      $@"\\{ip}\\{strPCtype.ToLower()}",                       // ip : main,vision
+                      $@"\\{ip}\\{strPCtype}",                                 // ip : Main,Vision
+                      $@"\\{ip}\\{diskType}\\{strPCtype.ToLower()}",           // ip : D : main,vision
+                      $@"\\{ip}\\{diskType}\\{strPCtype}",                     // ip : D : Main,Vision
+                      $@"\\{ip}\\{diskType.ToLower()}\\{strPCtype.ToLower()}", // ip : d : main,vision
+                      $@"\\{ip}\\{diskType.ToLower()}\\{strPCtype}",           // ip : d : Main,Vision
                 };
 
-                try 
+                #region Set path (d:main , D:main, d:Main, D:Main)
+                try
                 {
                     foreach (string path in remotePathList)
                     {
@@ -210,16 +238,18 @@ namespace AutoPatcher
                 }
                 catch
                 {
-                    MessageBox.Show("Does not exist path");
+                    System.Windows.MessageBox.Show("Does not exist path");
                     SetWarnning("Does not exist path");
                 }
+                #endregion
+
 
                 string remoteFolderPath = remotePath+"\\bin";
                 string remoteBackupPath = remotePath+"\\backup";
                 string remoteConfigPath = remotePath + "\\config";
                 string[] BackupPathList = { remoteFolderPath, remoteConfigPath };
                 
-                SetMessage($"access to [{ip}]...");
+                SetMessage($"Access to [{ip}]...");
                 Debug.WriteLine($"[{ip}] 접근 중...");
 
                 try
@@ -227,7 +257,7 @@ namespace AutoPatcher
                     if(!GetPingResult(ip))
                     {
                         SetWarnning($"No response {ip}");
-                        MessageBox.Show($"No respose {ip}");
+                        System.Windows.MessageBox.Show($"No respose {ip}");
                         continue;
                     }
                     
@@ -235,13 +265,13 @@ namespace AutoPatcher
                     // 프로그램 실행 중 확인
                     if (IsProgramRunning(ip, ProcessNameToCheck))
                     {
-                        SetMessage($"[{ip}] P/G is running : Waiting for exit {ProcessNameToCheck}...");
+                        SetMessage($"[{ip}] {ProcessNameToCheck} is running : Waiting for exit ...");
                         Debug.WriteLine($"[{ip}] 프로그램 실행 중: {ProcessNameToCheck}. 종료를 기다립니다...");
                         WaitForProcessToExit(ip, ProcessNameToCheck, timeoutSeconds: 120);
                     }
                     else
                     {
-                        SetMessage($"[{ip}] : P/G is not running. Do patch..");
+                        SetMessage($"[{ip}] : [{ProcessNameToCheck}] is not running. Try to patch..");
                         Debug.WriteLine($"[{ip}] 프로그램이 실행 중이 아닙니다. 패치 진행.");
                     }
                     #endregion
@@ -287,6 +317,7 @@ namespace AutoPatcher
                             Debug.WriteLine($"[{ip}] 최신 상태 유지: {fileName}");
                         }
                     }
+                    SetMessage($"[{ip}] _ patch completed");
                     #endregion
                 }
                 catch (Exception ex)
@@ -385,7 +416,7 @@ namespace AutoPatcher
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"디렉터리 접근 중 오류 발생: {ex.Message}");
+                System.Windows.MessageBox.Show($"디렉터리 접근 중 오류 발생: {ex.Message}");
                 return (new List<string>(),new List<string>());
             }
         }
@@ -497,7 +528,7 @@ namespace AutoPatcher
 
             if (string.IsNullOrEmpty(src) || string.IsNullOrEmpty(des))
             {
-                MessageBox.Show("Please provide both source and target directory paths.");
+                System.Windows.MessageBox.Show("Please provide both source and target directory paths.");
                 return false;
             }
 
@@ -505,15 +536,15 @@ namespace AutoPatcher
             {
                 if(!Directory.Exists(src))
                 {
-                    MessageBox.Show($"{src} dosen't exist");
+                    System.Windows.MessageBox.Show($"{src} dosen't exist");
                     return false;
                 }
                 CompressDirectory(src, des);
-                MessageBox.Show("Directory compressed successfully!");
+                System.Windows.MessageBox.Show("Directory compressed successfully!");
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error: {ex.Message}");
+                System.Windows.MessageBox.Show($"Error: {ex.Message}");
                 return false;
             }
             return true;
@@ -587,17 +618,19 @@ namespace AutoPatcher
                         Group = group_name,
                         Server = Convert.ToString(usedRange.Cells[row, 1]?.Value),
                         LocalIP = Convert.ToString(usedRange.Cells[row, 3]?.Value),
-                        InspectionUnit = Convert.ToString(usedRange.Cells[row, 4]?.Value),
-                        PC1 = Convert.ToString(usedRange.Cells[row, 5]?.Value),
-                        PC2 = Convert.ToString(usedRange.Cells[row, 6]?.Value),
-                        PC3 = Convert.ToString(usedRange.Cells[row, 7]?.Value),
-                        PC4 = Convert.ToString(usedRange.Cells[row, 8]?.Value)
+                        InspectionUnit = Convert.ToString(usedRange.Cells[row, 3]?.Value),
+                        PC1 = Convert.ToString(usedRange.Cells[row, 4]?.Value),
+                        PC2 = Convert.ToString(usedRange.Cells[row, 5]?.Value),
+                        PC3 = Convert.ToString(usedRange.Cells[row, 6]?.Value),
+                        PC4 = Convert.ToString(usedRange.Cells[row, 7]?.Value),
+                        PC5= Convert.ToString(usedRange.Cells[row, 8]?.Value),
+                        PC6= Convert.ToString(usedRange.Cells[row, 9]?.Value)
                     });
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading Excel data: {ex.Message}");
+                System.Windows.MessageBox.Show($"Error loading Excel data: {ex.Message}");
             }
             finally
             {
@@ -624,7 +657,7 @@ namespace AutoPatcher
             if (string.IsNullOrEmpty(ProcessNameToCheck))
             {
                 SetWarnning("Set the process name");
-                MessageBox.Show("Set the process name");
+                System.Windows.MessageBox.Show("Set the process name");
                 return;
             }
             using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
@@ -645,10 +678,10 @@ namespace AutoPatcher
         {
             if (SelectedMode == -1)
             {
-                MessageBox.Show("패치할 작업을 선택해주세요");
+                System.Windows.MessageBox.Show("패치할 작업을 선택해주세요");
                 return;
             }
-            OpenFileDialog dlg = new OpenFileDialog();
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
             if(dlg.ShowDialog() ==true)
             {   
                 if(dlg.CheckFileExists==true)
@@ -692,7 +725,7 @@ namespace AutoPatcher
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading files: {ex.Message}");
+                System.Windows.MessageBox.Show($"Error loading files: {ex.Message}");
             }
         }
 
@@ -700,7 +733,7 @@ namespace AutoPatcher
         {
             if (SelectedMode == -1)
             {
-                MessageBox.Show("패치할 작업을 선택해주세요");
+                System.Windows.MessageBox.Show("패치할 작업을 선택해주세요");
                 SetWarnning("Select a patch node");
                 return;
             }
@@ -719,7 +752,7 @@ namespace AutoPatcher
 
         private void CheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            var checkBox = sender as CheckBox;
+            var checkBox = sender as System.Windows.Controls.CheckBox;
             var dataItem = checkBox.DataContext as RowData;
             
             string ip = "";
@@ -744,15 +777,27 @@ namespace AutoPatcher
             {
                 ip = dataItem.PC4;                
             }
-            
-            if (flag) IPAddresses.Add(ip);
-            else IPAddresses.Remove(ip);
-            
+
+            else if (checkBox.Name.Contains("V4") && dataItem != null)
+            {
+                ip = dataItem.PC5;
+            }
+
+            else if (checkBox.Name.Contains("V5") && dataItem != null)
+            {
+                ip = dataItem.PC6;
+            }
+
+            if (!string.IsNullOrEmpty(ip))
+            {
+                if (flag) IPAddresses.Add(ip);
+                else IPAddresses.Remove(ip);
+            }            
         }
 
         private void AllCheckbox_checked(object sender, RoutedEventArgs e)
         {
-            var checkBox = sender as CheckBox;
+            var checkBox = sender as System.Windows.Controls.CheckBox;
             bool flag = (checkBox.IsChecked == true) ? true : false;  
             if(checkBox.Name.Contains("Main"))
             {
@@ -782,13 +827,29 @@ namespace AutoPatcher
                 {
                     item.V3Selected = flag;                    
                 }
-            }          
+            }
+
+            else if (checkBox.Name.Contains("V4"))
+            {
+                foreach (var item in DataGridItems)
+                {
+                    item.V4Selected = flag;
+                }
+            }
+
+            else if (checkBox.Name.Contains("V5"))
+            {
+                foreach (var item in DataGridItems)
+                {
+                    item.V5Selected = flag;
+                }
+            }
 
         }
 
         private void AllCheckbox_unchecked(object sender,RoutedEventArgs e)
         {
-            var checkBox = sender as CheckBox;
+            var checkBox = sender as System.Windows.Controls.CheckBox;
 
             if (checkBox.Name.Contains("Main"))
             {
@@ -822,11 +883,29 @@ namespace AutoPatcher
                     IPAddresses.Add(item.PC4);
                 }
             }
+
+            else if(checkBox.Name.Contains("V4"))
+            {
+                foreach (var item in DataGridItems)
+                {
+                    item.V4Selected = true;
+                    IPAddresses.Add(item.PC5);
+                }
+            }
+
+            else if(checkBox.Name.Contains("V5"))
+            {
+                foreach (var item in DataGridItems)
+                {
+                    item.V5Selected = true;
+                    IPAddresses.Add(item.PC6);
+                }
+            }
         }
 
         private void Radiobutton_Checked(object sender, RoutedEventArgs e)
         {
-            var btn = sender as RadioButton;
+            var btn = sender as System.Windows.Controls.RadioButton;
 
             #region Datagrid Mode(LF,SII,BGA,COB)
             if (btn.GroupName.Contains("Mode"))
@@ -891,7 +970,7 @@ namespace AutoPatcher
 
         private void chkMainAll_Checked(object sender, RoutedEventArgs e)
         {
-            var checkBox = sender as CheckBox;
+            var checkBox = sender as System.Windows.Controls.CheckBox;
 
             if (checkBox.Name.Contains("Main"))
             {
@@ -925,6 +1004,24 @@ namespace AutoPatcher
                     IPAddresses.Add(item.PC4);
                 }
             }
+
+            else if (checkBox.Name.Contains("V4"))
+            {
+                foreach (var item in DataGridItems)
+                {
+                    item.V4Selected = true;
+                    IPAddresses.Add(item.PC5);
+                }
+            }
+
+            else if (checkBox.Name.Contains("V5"))
+            {
+                foreach (var item in DataGridItems)
+                {
+                    item.V5Selected = true;
+                    IPAddresses.Add(item.PC6);
+                }
+            }
         }
     }
     public class RowData : INotifyPropertyChanged
@@ -934,6 +1031,8 @@ namespace AutoPatcher
         private bool v1Selected;
         private bool v2Selected;
         private bool v3Selected;
+        private bool v4Selected;
+        private bool v5Selected;
         private bool mainSelected;
 
         public bool MainSelected 
@@ -958,6 +1057,18 @@ namespace AutoPatcher
             
         }
 
+        public bool V4Selected
+        {
+            get { return v4Selected; }
+            set { v4Selected = value; OnPropertyChanged(nameof(V4Selected)); }
+        }
+
+        public bool V5Selected
+        {
+            get { return v5Selected; }
+            set { v5Selected = value; OnPropertyChanged(nameof(V5Selected)); }
+        }
+
         public string Group { get; set; }
         public string Server { get; set; }
         public string LocalIP { get; set; }
@@ -966,6 +1077,8 @@ namespace AutoPatcher
         public string PC2 { get; set; }
         public string PC3 { get; set; }
         public string PC4 { get; set; }        
+        public string PC5 { get; set; }
+        public string PC6 { get; set; }
 
         protected void OnPropertyChanged(string propertyName)
         {

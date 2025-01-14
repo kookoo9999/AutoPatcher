@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:AutoPatcher"
         mc:Ignorable="d"
-        Title="AutoPatch [ Version 1.0.0 ]" Height="Auto" Width="Auto" MaxHeight="1080">
+        Title="HDS Patch Automation [ Version 1.0.0 ]" Height="900" Width="850">
     <Window.Resources>
         <!-- Grouping Data by Group -->
         <CollectionViewSource x:Key="GroupedData" Source="{Binding DataGridItems}">
@@ -15,223 +15,220 @@
         </CollectionViewSource>
     </Window.Resources>
     <Grid>
-        <StackPanel Orientation="Vertical" MaxHeight="1000">
-            <StackPanel Orientation="Horizontal" Margin="10,0,0,0" Height="Auto" >
-                <RadioButton x:Name="rdLF"  FontSize="15" VerticalContentAlignment="Center" Content="LF"  Margin="0,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[0],Mode=TwoWay}"></RadioButton>
-                <RadioButton x:Name="rdSII" FontSize="15" VerticalContentAlignment="Center" Content="SII" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[1],Mode=TwoWay}"></RadioButton>
-                <RadioButton x:Name="rdBGA" FontSize="15" VerticalContentAlignment="Center" Content="BGA" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[2],Mode=TwoWay}"></RadioButton>
-                <RadioButton x:Name="rdCOB" FontSize="15" VerticalContentAlignment="Center" Content="COB" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[3],Mode=TwoWay}"></RadioButton>
-                <Label FontSize="15" Content="Status : " Margin="150,0,0,0"></Label>
-                <Label FontSize="15" Content="-" Margin="1,0,0,0" Name="lblStatus"></Label>
-            </StackPanel>
-            
-            
-            <DataGrid x:Name="DataGrid"
-                  AutoGenerateColumns="False"
-                  IsReadOnly="False"
-                  CanUserAddRows="False"
-                  Margin="10,5,10,0"
-                  HorizontalScrollBarVisibility="Auto"
-                  VerticalScrollBarVisibility="Auto"
-                  HeadersVisibility="Column"
-                  Height="Auto"
-                  MaxHeight="350"
-                  MinHeight="200"
-                  ItemsSource="{Binding Path=Groups, Source={StaticResource GroupedData}}" >
-                <DataGrid.Resources>
-                    <Style TargetType="DataGrid">
-                        <Setter Property="HorizontalGridLinesBrush" Value="Black"></Setter>
-                        <Setter Property="VerticalGridLinesBrush" Value="Black"></Setter>
-                    </Style>
-                    <Style TargetType="DataGridColumnHeader">                        
-                        <Setter Property="Foreground" Value="Black"></Setter>
-                        <Setter Property="BorderBrush" Value="Black"></Setter>
-                        <Setter Property="SeparatorBrush" Value="Black"></Setter>                        
-                    </Style>
-                    <Style TargetType="CheckBox">
-                        <Style.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter Property="Background" Value="LightGreen"></Setter>
-                                <Setter Property="Foreground" Value="White"></Setter>
-                            </Trigger>
-                            <Trigger Property="IsChecked" Value="False">
-                                <Setter Property="Background" Value="White"></Setter>
-                                <Setter Property="Foreground" Value="Black"></Setter>
-                            </Trigger>
-                        </Style.Triggers>
-                        
-                    </Style>
-                </DataGrid.Resources>
-                <DataGrid.GroupStyle>
-                    <GroupStyle>
-                        <GroupStyle.HeaderTemplate>
-                            <DataTemplate>
-                                <!-- Group Header Template -->
-                                <TextBlock Text="{Binding Name}" FontWeight="Bold" Padding="5" />
-                            </DataTemplate>
-                        </GroupStyle.HeaderTemplate>
-                    </GroupStyle>
-                </DataGrid.GroupStyle>
+        <Border VerticalAlignment="Stretch" Margin="10,10,10,10">
+            <StackPanel Orientation="Vertical" Margin="10,10,10,10">
+                <StackPanel Orientation="Horizontal" Margin="10,0,10,0" Height="Auto" >
+                    <RadioButton x:Name="rdLF"  FontSize="15" VerticalContentAlignment="Center" Content="LF"  Margin="0,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[0],Mode=TwoWay}"></RadioButton>
+                    <RadioButton x:Name="rdSII" FontSize="15" VerticalContentAlignment="Center" Content="SII" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[1],Mode=TwoWay}"></RadioButton>
+                    <RadioButton x:Name="rdBGA" FontSize="15" VerticalContentAlignment="Center" Content="BGA" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[2],Mode=TwoWay}"></RadioButton>
+                    <RadioButton x:Name="rdCOB" FontSize="15" VerticalContentAlignment="Center" Content="COB" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[3],Mode=TwoWay}"></RadioButton>
+                    <Label FontSize="15" Content="Status : " HorizontalAlignment="Center" HorizontalContentAlignment="Center" Margin="150,0,0,0"></Label>
+                    <Label FontSize="15" Content="-" Margin="1,0,0,0" Name="lblStatus"></Label>
+                </StackPanel>
+                
+                <DataGrid x:Name="DataGrid"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="False"
+                          CanUserAddRows="False"
+                          Margin="10,5,10,0"
+                          HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Auto"
+                          HeadersVisibility="Column"
+                          Height="Auto"                                                    
+                          MaxHeight="350"
+                          MinHeight="200"                          
+                          ItemsSource="{Binding Path=Groups, Source={StaticResource GroupedData}}" >
+                    <DataGrid.Resources>
+                        <Style TargetType="DataGrid">
+                            <Setter Property="HorizontalGridLinesBrush" Value="Black"></Setter>
+                            <Setter Property="VerticalGridLinesBrush" Value="Black"></Setter>
+                        </Style>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="TextBlock.TextAlignment" Value="Center"/>
+                            <Setter Property="Foreground" Value="Black"></Setter>
+                            <Setter Property="BorderBrush" Value="Black"></Setter>
+                            <Setter Property="SeparatorBrush" Value="Black"></Setter>
+                        </Style>
+                        <Style TargetType="CheckBox">
+                            <Style.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter Property="Background" Value="LightGreen"></Setter>
+                                    <Setter Property="Foreground" Value="White"></Setter>
+                                </Trigger>
+                                <Trigger Property="IsChecked" Value="False">
+                                    <Setter Property="Background" Value="White"></Setter>
+                                    <Setter Property="Foreground" Value="Black"></Setter>
+                                </Trigger>
+                            </Style.Triggers>
 
-                <DataGrid.Columns>                    
-                    <!-- Other Columns -->
-                    <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="100"/>
+                        </Style>
+                    </DataGrid.Resources>
+                    <DataGrid.GroupStyle>
+                        <GroupStyle>
+                            <GroupStyle.HeaderTemplate>
+                                <DataTemplate>
+                                    <!-- Group Header Template -->
+                                    <TextBlock Text="{Binding Name}" TextAlignment="Center" FontWeight="Bold" Padding="5" />
+                                </DataTemplate>
+                            </GroupStyle.HeaderTemplate>
+                        </GroupStyle>
+                    </DataGrid.GroupStyle>
 
-                    <!--<DataGridTextColumn Header="Server" Binding="{Binding Server}" Width="150" />
-                    <DataGridTextColumn Header="Local IP" Binding="{Binding LocalIP}" Width="120" />-->
-                    <DataGridTextColumn Header="Machine" Binding="{Binding InspectionUnit}" Width="120" />
-                    <!--<DataGridTextColumn Header="Main IP" Binding="{Binding PC1}" Width="120" />-->
-                    <DataGridTemplateColumn>
-                        <DataGridTemplateColumn.HeaderStyle>
-                            <Style TargetType="DataGridColumnHeader">
-                                <Setter Property="Content">
-                                    <Setter.Value>
-                                        <StackPanel Orientation="Horizontal">
-                                            <CheckBox  VerticalAlignment="Center" Margin="1,0,0,0"/>
-                                            <TextBlock Text="Main" VerticalAlignment="Center" Margin="2,0,0,0"/>
-                                        </StackPanel>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </DataGridTemplateColumn.HeaderStyle>
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
+                    <DataGrid.Columns>
+                        <!-- Other Columns -->
+                        <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="100"/>
+
+                        <!--<DataGridTextColumn Header="Server" Binding="{Binding Server}" Width="150" />
+                            <DataGridTextColumn Header="Local IP" Binding="{Binding LocalIP}" Width="120" />-->
+                        <DataGridTextColumn Header="Machine" Binding="{Binding InspectionUnit}" Width="120" />
+                        <!--<DataGridTextColumn Header="Main IP" Binding="{Binding PC1}" Width="120" />-->
+                        <DataGridTemplateColumn>
+                            <DataGridTemplateColumn.Header>
                                 <StackPanel Orientation="Horizontal">
-                                    <CheckBox IsChecked="{Binding MainSelected}" Name="chkMain" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked" ></CheckBox>
-                                    <TextBlock Text="{Binding PC1}" Width="120"></TextBlock>                                    
+                                    <CheckBox  VerticalAlignment="Center" Margin="1,0,0,0" x:Name="chkMainAll" Checked="AllCheckbox_checked" Unchecked="AllCheckbox_checked"/>
+                                    <TextBlock VerticalAlignment="Center" Margin="3,0,0,0" Text="Main"/>
                                 </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <!--<DataGridTextColumn Header="Vision1 IP" Binding="{Binding PC2}" Width="120" />-->
-                    <DataGridTemplateColumn>
-                        <DataGridTemplateColumn.HeaderStyle>
-                            <Style TargetType="DataGridColumnHeader">
-                                <Setter Property="Content">
-                                    <Setter.Value>
-                                        <StackPanel Orientation="Horizontal">
-                                            <CheckBox x:Name="chkV1All" VerticalAlignment="Center" Margin="1,0,0,0"/>
-                                            <TextBlock Text="Vision1" VerticalAlignment="Center" Margin="2,0,0,0"/>
-                                        </StackPanel>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </DataGridTemplateColumn.HeaderStyle>
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
+                            </DataGridTemplateColumn.Header>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <CheckBox IsChecked="{Binding MainSelected}" Name="chkMain" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked" ></CheckBox>
+                                        <TextBlock Text="{Binding PC1}" Width="120"></TextBlock>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <!--<DataGridTextColumn Header="Vision1 IP" Binding="{Binding PC2}" Width="120" />-->
+                        <DataGridTemplateColumn>
+                            <DataGridTemplateColumn.Header>
                                 <StackPanel Orientation="Horizontal">
-                                    <CheckBox IsChecked="{Binding V1Selected}" Name="chkV1" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked"></CheckBox>
-                                    <TextBlock Text="{Binding PC2}" Width="120"></TextBlock>                                    
+                                    <CheckBox  VerticalAlignment="Center" Margin="1,0,0,0" x:Name="chkV1All" Checked="AllCheckbox_checked" Unchecked="AllCheckbox_checked"/>
+                                    <TextBlock VerticalAlignment="Center" Margin="3,0,0,0"  Text="Vision1"/>
                                 </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <!--<DataGridTextColumn Header="Vision2 IP" Binding="{Binding PC3}" Width="120" />-->
-                    <DataGridTemplateColumn>
-                        <DataGridTemplateColumn.HeaderStyle>
-                            <Style TargetType="DataGridColumnHeader">
-                                <Setter Property="Content">
-                                    <Setter.Value>
-                                        <StackPanel Orientation="Horizontal">
-                                            <CheckBox x:Name="chkV2All" VerticalAlignment="Center" Margin="1,0,0,0"/>
-                                            <TextBlock Text="Vision2" VerticalAlignment="Center" Margin="2,0,0,0"/>
-                                        </StackPanel>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </DataGridTemplateColumn.HeaderStyle>
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
+                            </DataGridTemplateColumn.Header>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <CheckBox IsChecked="{Binding V1Selected}" Name="chkV1" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked"></CheckBox>
+                                        <TextBlock Text="{Binding PC2}" Width="120"></TextBlock>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <!--<DataGridTextColumn Header="Vision2 IP" Binding="{Binding PC3}" Width="120" />-->
+                        <DataGridTemplateColumn>
+                            <DataGridTemplateColumn.Header>
                                 <StackPanel Orientation="Horizontal">
-                                    <CheckBox IsChecked="{Binding V2Selected}" Name="chkV2" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked"></CheckBox>
-                                    <TextBlock Text="{Binding PC3}" Width="120"></TextBlock>                                    
+                                    <CheckBox  VerticalAlignment="Center" Margin="1,0,0,0" x:Name="chkV2All" Checked="AllCheckbox_checked" Unchecked="AllCheckbox_checked"/>
+                                    <TextBlock VerticalAlignment="Center" Margin="3,0,0,0" Text="Vision2"/>
                                 </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <!--<DataGridTextColumn Header="Vision3 IP" Binding="{Binding PC4}" Width="120" />-->
-                    <DataGridTemplateColumn>
-                        <DataGridTemplateColumn.HeaderStyle>
-                            <Style TargetType="DataGridColumnHeader">
-                                <Setter Property="Content">
-                                    <Setter.Value>
-                                        <StackPanel Orientation="Horizontal">
-                                            <CheckBox x:Name="chkV3All" VerticalAlignment="Center" Margin="1,0,0,0"/>
-                                            <TextBlock Text="Vision3" VerticalAlignment="Center" Margin="2,0,0,0"/>
-                                        </StackPanel>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </DataGridTemplateColumn.HeaderStyle>
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
+                            </DataGridTemplateColumn.Header>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <CheckBox IsChecked="{Binding V2Selected}" Name="chkV2" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked"></CheckBox>
+                                        <TextBlock Text="{Binding PC3}" Width="120"></TextBlock>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <!--<DataGridTextColumn Header="Vision3 IP" Binding="{Binding PC4}" Width="120" />-->
+                        <DataGridTemplateColumn>
+                            <DataGridTemplateColumn.Header>
                                 <StackPanel Orientation="Horizontal">
-                                    <CheckBox IsChecked="{Binding V3Selected}" Name="chkV3" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked"></CheckBox>
-                                    <TextBlock Text="{Binding PC4}" Width="120"></TextBlock>                                    
+                                    <CheckBox  VerticalAlignment="Center" Margin="1,0,0,0" x:Name="chkV3All" Checked="AllCheckbox_checked" Unchecked="AllCheckbox_checked"/>
+                                    <TextBlock VerticalAlignment="Center" Margin="3,0,0,0" Text="Vision3"/>
                                 </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                    <DataGridCheckBoxColumn>
-                        <DataGridCheckBoxColumn.Header>
-                            <StackPanel Orientation="Horizontal">
-                                <CheckBox Checked="AllCheckbox_checked"></CheckBox>
-                                <TextBlock Text="all test"/>
-                            </StackPanel>                            
-                        </DataGridCheckBoxColumn.Header>
-                    </DataGridCheckBoxColumn>
-                </DataGrid.Columns>
-            </DataGrid>
-            <StackPanel Orientation="Horizontal" Margin="10,5,0,0" Height="Auto">
-                <RadioButton Name="rdMain"   Checked="Radiobutton_Checked" GroupName="PCType"  VerticalContentAlignment="Center" FontSize="15" Content="Main" Margin="5,0,0,0"></RadioButton>
-                <RadioButton Name="rdVision" Checked="Radiobutton_Checked" GroupName="PCType"  VerticalContentAlignment="Center" FontSize="15" Content="Vision" Margin="5,0,0,0"></RadioButton>
-                <Label FontSize="15" Content="Process :" Margin="10,0,0,0"></Label>
-                <Label x:Name="lblProcName" FontSize="15" Content="-" Margin="0,0,0,0"></Label>
-            </StackPanel>
-            <!-- ListBox to Display Files -->
+                            </DataGridTemplateColumn.Header>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <CheckBox IsChecked="{Binding V3Selected}" Name="chkV3" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked"></CheckBox>
+                                        <TextBlock Text="{Binding PC4}" Width="120"></TextBlock>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn>
+                            <DataGridTemplateColumn.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox  VerticalAlignment="Center" Margin="1,0,0,0" x:Name="chkV4All" Checked="AllCheckbox_checked" Unchecked="AllCheckbox_checked"/>
+                                    <TextBlock VerticalAlignment="Center" Margin="3,0,0,0" Text="Vision4"/>
+                                </StackPanel>
+                            </DataGridTemplateColumn.Header>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <CheckBox IsChecked="{Binding V4Selected}" Name="chkV4" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked"></CheckBox>
+                                        <TextBlock Text="{Binding PC5}" Width="120"></TextBlock>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTemplateColumn>
+                            <DataGridTemplateColumn.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox  VerticalAlignment="Center" Margin="1,0,0,0" x:Name="chkV5All" Checked="AllCheckbox_checked" Unchecked="AllCheckbox_checked"/>
+                                    <TextBlock VerticalAlignment="Center" Margin="3,0,0,0" Text="Vision5"/>
+                                </StackPanel>
+                            </DataGridTemplateColumn.Header>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <CheckBox IsChecked="{Binding V5Selected}" Name="chkV5" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked"></CheckBox>
+                                        <TextBlock Text="{Binding PC6}" Width="120"></TextBlock>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <StackPanel Orientation="Horizontal" Margin="10,5,0,0" Height="Auto">
+                    <RadioButton Name="rdMain"   Checked="Radiobutton_Checked" GroupName="PCType"  VerticalContentAlignment="Center" FontSize="15" Content="Main" Margin="5,0,0,0"></RadioButton>
+                    <RadioButton Name="rdVision" Checked="Radiobutton_Checked" GroupName="PCType"  VerticalContentAlignment="Center" FontSize="15" Content="Vision" Margin="5,0,0,0"></RadioButton>
+                    <Label FontSize="15" Content="Process :" Margin="10,0,0,0"></Label>
+                    <Label x:Name="lblProcName" FontSize="15" Content="-" Margin="0,0,0,0"></Label>
+                </StackPanel>
+                <!-- ListBox to Display Files -->
             <ListBox x:Name="FileListBox" Margin="10,0,0,0" Height="Auto" MaxHeight="300" MinHeight="200" />
 
-            <StackPanel Orientation="Vertical" Margin="10,10,0,0" Height="Auto" MaxHeight="150">
-                
-                <!--select excel-->
-                <StackPanel Orientation="Horizontal" Height="Auto" Margin="5,5,0,0">
-                    <Button x:Name="btnLoadExcel"
-                    Content="Load Excel" Width="80" Height="30"
-                    VerticalAlignment="Top" 
-                    HorizontalAlignment="Left"
-                    Click = "btnLoadExcel_Click"
-                    FontSize="13"/>
-                    <Label x:Name="lblCurExcel" Content="D:\" Margin="12,0,0,0"/>
-                </StackPanel>
+                <StackPanel Orientation="Vertical" Margin="10,10,10,10" Height="Auto">
 
-                <!--set patch folder-->
-                <StackPanel Orientation="Horizontal" Height="Auto" Margin="5,5,0,0" >
-                    <!-- Button to Select Folder -->
-                    <Button x:Name="SelectFolderButton" 
-                Content="Patch Folder"                 
-                Width="80" 
-                Height="30"                  
-                VerticalAlignment="Top" 
-                HorizontalAlignment="Left"
-                Click="SelectFolderButton_Click" 
-                FontSize="13"/>
-                    <Label x:Name="lblCurDir" Content="D:\" Margin="13,0,0,0"/>
+                    <!--select excel-->
+                    <StackPanel Orientation="Horizontal" Height="Auto" Margin="5,0,0,0">
+                        <Button x:Name="btnLoadExcel"
+                            Content="Load Excel" Width="80" Height="30"
+                            VerticalAlignment="Top" 
+                            HorizontalAlignment="Left"
+                            Click = "btnLoadExcel_Click"
+                            FontSize="13"/>
+                        <Label x:Name="lblCurExcel" Content="D:\" Margin="12,0,0,0"/>
+                    </StackPanel>
+
+                    <!--set patch folder-->
+                    <StackPanel Orientation="Horizontal" Height="Auto" Margin="5,5,0,0" >
+                        <!-- Button to Select Folder -->
+                        <Button x:Name="SelectFolderButton" 
+                        Content="Patch Folder"                 
+                        Width="80" 
+                        Height="30"                  
+                        VerticalAlignment="Top" 
+                        HorizontalAlignment="Left"
+                        Click="SelectFolderButton_Click" 
+                        FontSize="13"/>
+                        <Label x:Name="lblCurDir" Content="D:\" Margin="13,0,0,0"/>
+                    </StackPanel>
+
+                    <!--run patch-->
+                    <StackPanel Orientation="Horizontal" Height="Auto" Margin="5,5,0,0">
+                        <Button x:Name="btnRunPatch" Content="Apply" Width="80" Height="30"  
+                        VerticalAlignment="Top" 
+                        HorizontalAlignment="Left" Click="btnRunPatch_Click"/>
+                    </StackPanel>
                 </StackPanel>
-                
-                <!--run patch-->                
-                <StackPanel Orientation="Horizontal" Height="Auto" Margin="5,5,0,0">
-                    <Button x:Name="btnRunPatch" Content="Apply" Width="80" Height="30"  
-                VerticalAlignment="Top" 
-                HorizontalAlignment="Left" Click="btnRunPatch_Click"/>
-                    
-                </StackPanel>                    
-                
-                
             </StackPanel>
-        </StackPanel>
-        
-        
-        
-        
+        </Border>
     </Grid>
 </Window>
