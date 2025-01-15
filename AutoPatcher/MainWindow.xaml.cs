@@ -26,6 +26,7 @@ using System.Reflection;
 using System.Resources;
 using System.Net.NetworkInformation;
 using System.Windows.Forms;
+using System.Security.Cryptography;
 
 namespace AutoPatcher
 {
@@ -36,25 +37,25 @@ namespace AutoPatcher
     {
         #region member
 
-        
+
 
         #region radio button (LF,SII,BGA,COB)
-        private bool[] _ModeArray = new bool[4] {true,false,false,false};
+        private bool[] _ModeArray = new bool[4] { true, false, false, false };
         public bool[] ModeArray { get { return _ModeArray; } }
-        public int SelectedMode { get { return Array.IndexOf(_ModeArray,true); } }
+        public int SelectedMode { get { return Array.IndexOf(_ModeArray, true); } }
         #endregion
 
         #region radio button (Main,Vision)
         private bool[] _TypeArray = new bool[2];
         public bool[] TypeArray { get { return _TypeArray; } }
-        public int SelectType { get { return Array.IndexOf(_TypeArray,true); } }
+        public int SelectType { get { return Array.IndexOf(_TypeArray, true); } }
         #endregion
 
 
         #region set all check (main,vision1,2,3)
         private bool[] _isAllSelected = new bool[4] { false, false, false, false };
         public bool[] IsAllSelected { get { return _isAllSelected; } }
-        public int AllSelected { get { return Array.IndexOf(_isAllSelected,true); } }
+        public int AllSelected { get { return Array.IndexOf(_isAllSelected, true); } }
         #endregion
 
         public ObservableCollection<RowData> DataGridItems { get; private set; }
@@ -102,7 +103,7 @@ namespace AutoPatcher
         private string _processNameToCheck;
         public string ProcessNameToCheck
         {
-            get { return _processNameToCheck;}
+            get { return _processNameToCheck; }
             set { _processNameToCheck = value; }
         }
 
@@ -121,8 +122,8 @@ namespace AutoPatcher
             set { _foldersToCheck = value; }
         }
 
-        double originWidth,originHeight;
-        ScaleTransform scale=new ScaleTransform();
+        double originWidth, originHeight;
+        ScaleTransform scale = new ScaleTransform();
 
         #endregion
 
@@ -136,30 +137,32 @@ namespace AutoPatcher
             FoldersToCheck = new List<string>();
             //LoadExcelData(@"D:\WPF\test_lists.xlsx"); // 엑셀 파일 경로
             //SetupDataGridGrouping();
-            DataGrid.ItemsSource = DataGridItems;            
+            DataGrid.ItemsSource = DataGridItems;
             FileListBox.ItemsSource = FileList;
-            
+            string src = "D:\\BGA_AVI_MAIN\\bin";
+            string des = "D:\\TEST\\Back_up";
+            BackupDirectory(src, des);
         }
 
-        void MainWindow_Loaded(object sender,RoutedEventArgs e)
-        {            
+        void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
             originHeight = this.Height;
             originWidth = this.Width;
-            if(this.WindowState == WindowState.Maximized)
+            if (this.WindowState == WindowState.Maximized)
             {
-                ChangeSize(this.ActualWidth,this.ActualHeight);
+                ChangeSize(this.ActualWidth, this.ActualHeight);
             }
             this.SizeChanged += new SizeChangedEventHandler(MainWindow_SizeChanged);
         }
 
 
-        void MainWindow_SizeChanged(object sender,SizeChangedEventArgs e)
+        void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            ChangeSize(e.NewSize.Width,e.NewSize.Height);
+            ChangeSize(e.NewSize.Width, e.NewSize.Height);
         }
-        
 
-        private void ChangeSize(double width,double height)
+
+        private void ChangeSize(double width, double height)
         {
             scale.ScaleX = width / originWidth;
             scale.ScaleY = height / originHeight;
@@ -193,16 +196,16 @@ namespace AutoPatcher
                 System.Windows.MessageBox.Show("패치파일이 들어있는 폴더가 지정되지 않았습니다");
                 return false;
             }
-            
-            if(IPAddresses.Count == 0)
+
+            if (IPAddresses.Count == 0)
             {
                 System.Windows.MessageBox.Show("패치할 설비가 지정되지 않았습니다");
                 return false;
             }
 
-            if (FilesToCheck.Count == 0 || FoldersToCheck.Count==0)
+            if (FilesToCheck.Count == 0 || FoldersToCheck.Count == 0)
             {
-                if(string.IsNullOrEmpty(SourceDirectory))
+                if (string.IsNullOrEmpty(SourceDirectory))
                 {
                     System.Windows.MessageBox.Show("패치할 파일 및 폴더가 지정되지 않았습니다");
                     return false;
@@ -217,7 +220,6 @@ namespace AutoPatcher
                 string strPCtype = PCType; //"Main" vision
                 string diskType = "D";
                 string remotePath = "";
-                string remoteTempPath = $@"\\{ip}\\{diskType}\\{PCType.ToLower()}";
                 string[] remotePathList =
                 {
                       $@"\\{ip}\\{strPCtype.ToLower()}",                       // ip : main,vision
@@ -233,7 +235,11 @@ namespace AutoPatcher
                 {
                     foreach (string path in remotePathList)
                     {
-                        if (Directory.Exists(path)) remotePath = path;
+                        if (Directory.Exists(path))
+                        {
+                            remotePath = path;
+                            break;
+                        }
                     }
                 }
                 catch
@@ -244,23 +250,25 @@ namespace AutoPatcher
                 #endregion
 
 
-                string remoteFolderPath = remotePath+"\\bin";
-                string remoteBackupPath = remotePath+"\\backup";
+                string remoteFolderPath = remotePath + "\\bin";
+                string remoteBackupPath = remotePath + "\\backup";
                 string remoteConfigPath = remotePath + "\\config";
                 string[] BackupPathList = { remoteFolderPath, remoteConfigPath };
-                
+
                 SetMessage($"Access to [{ip}]...");
                 Debug.WriteLine($"[{ip}] 접근 중...");
 
                 try
                 {
-                    if(!GetPingResult(ip))
+                    #region ping
+                    if (!GetPingResult(ip))
                     {
                         SetWarnning($"No response {ip}");
                         System.Windows.MessageBox.Show($"No respose {ip}");
                         continue;
                     }
-                    
+                    #endregion
+
                     #region check process running
                     // 프로그램 실행 중 확인
                     if (IsProgramRunning(ip, ProcessNameToCheck))
@@ -277,7 +285,7 @@ namespace AutoPatcher
                     #endregion
 
                     #region backup
-                    foreach(string strBackUpPath in BackupPathList)
+                    foreach (string strBackUpPath in BackupPathList)
                     {
                         SetMessage($"[{ip}] _ [{strBackUpPath}] back up..");
                         if (!CheckBackupFolder(strBackUpPath, remoteBackupPath))
@@ -287,11 +295,11 @@ namespace AutoPatcher
 
                     #region Update
                     // subfolder 없을시 생성
-                    foreach(string folder in FoldersToCheck)
+                    foreach (string folder in FoldersToCheck)
                     {
-                        if(!Directory.Exists(remotePath+folder))
+                        if (!Directory.Exists(remoteFolderPath + "\\" + folder))
                         {
-                            Directory.CreateDirectory(remotePath+folder);
+                            Directory.CreateDirectory(remotePath + folder);
                         }
                     }
                     // 파일 업데이트 작업
@@ -304,13 +312,12 @@ namespace AutoPatcher
                         if (!File.Exists(remoteFilePath))
                         {
                             Debug.WriteLine($"[{ip}] 원격 파일 없음: {fileName}.");
-                            continue;
                         }
 
                         if (IsFileUpdateNeeded(localFilePath, remoteFilePath))
                         {
                             Debug.WriteLine($"[{ip}] 업데이트 필요: {fileName}. 백업 및 교체를 진행합니다.");
-                            BackupAndReplaceFile(remoteFolderPath, fileName, localFilePath);
+                            ReplaceFile(remoteFolderPath, fileName, localFilePath);
                         }
                         else
                         {
@@ -323,9 +330,10 @@ namespace AutoPatcher
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"[{ip}] 오류 발생: {ex.Message}");
+                    return false;
                 }
             }
-            
+
             Debug.WriteLine("모든 작업이 완료되었습니다.");
             Console.ReadLine();
 
@@ -335,16 +343,16 @@ namespace AutoPatcher
         private bool GetPingResult(string desIP)
         {
             try
-            {                
+            {
                 using (Ping ping = new Ping())
-                {                    
+                {
                     PingReply reply = ping.Send(desIP, 5000); // 5000ms
-                                        
+
                     return reply.Status == IPStatus.Success;
                 }
             }
             catch (Exception ex)
-            {                
+            {
                 Console.WriteLine($"Error: {ex.Message}");
                 return false;
             }
@@ -354,23 +362,23 @@ namespace AutoPatcher
             FileAttributes fa = File.GetAttributes(targetPath);
             Uri baseUri = null;
             Uri targetUri = null;
-            
-            if ((fa & FileAttributes.Directory)==FileAttributes.Directory)
+
+            if ((fa & FileAttributes.Directory) == FileAttributes.Directory)
             {
-                baseUri   = new Uri(AppendDirectorySeparator(basePath));
+                baseUri = new Uri(AppendDirectorySeparator(basePath));
                 targetUri = new Uri(AppendDirectorySeparator(targetPath));
-                
+
                 //return Uri.UnescapeDataString(relativeUri.ToString().Replace('/', System.IO.Path.DirectorySeparatorChar));
             }
             else
             {
                 baseUri = new Uri(basePath);
                 targetUri = new Uri(targetPath);
-                
+
                 //return Uri.UnescapeDataString(relativeUri.ToString());
             }
-            
-            Uri relativeUri = baseUri.MakeRelativeUri(targetUri);            
+
+            Uri relativeUri = baseUri.MakeRelativeUri(targetUri);
             string relativePath = Uri.UnescapeDataString(relativeUri.ToString().Replace('/', System.IO.Path.DirectorySeparatorChar));
             //relativePath = targetPath.Substring((basePath.Length+2));
 
@@ -380,11 +388,11 @@ namespace AutoPatcher
             //    return relativePath.Substring(relativePath.LastIndexOf(System.IO.Path.DirectorySeparatorChar) + 1);
             //}
 
-            return relativePath; 
+            return relativePath;
 
         }
 
-        private  string AppendDirectorySeparator(string path)
+        private string AppendDirectorySeparator(string path)
         {
             if (!path.EndsWith(System.IO.Path.DirectorySeparatorChar.ToString()))
             {
@@ -394,15 +402,15 @@ namespace AutoPatcher
         }
 
         // 디렉터리의 모든 파일 리스트 가져오기
-        (List<string> files,List<string> folders)GetFileListFromDirectory(string directoryPath)
+        (List<string> files, List<string> folders) GetFileListFromDirectory(string directoryPath)
         {
             try
             {
                 // 디렉터리 내 모든 파일의 이름을 상대 경로로 반환
                 List<string> folders = new List<string>();
                 List<string> files = new List<string>();
-                foreach(string folder in Directory.GetDirectories(directoryPath,"*",SearchOption.AllDirectories))
-                {                    
+                foreach (string folder in Directory.GetDirectories(directoryPath, "*", SearchOption.AllDirectories))
+                {
                     string relative = GetRelativePath(directoryPath, folder);
                     folders.Add(relative);
                 }
@@ -412,12 +420,12 @@ namespace AutoPatcher
                     string relativePath = GetRelativePath(directoryPath, filePath);
                     files.Add(relativePath);
                 }
-                return (files,folders);
+                return (files, folders);
             }
             catch (Exception ex)
             {
                 System.Windows.MessageBox.Show($"디렉터리 접근 중 오류 발생: {ex.Message}");
-                return (new List<string>(),new List<string>());
+                return (new List<string>(), new List<string>());
             }
         }
 
@@ -427,10 +435,10 @@ namespace AutoPatcher
             string remoteName = @"\\" + ip + @"\root\cimv2";
 
             ConnectionOptions con = new ConnectionOptions();
-            ResourceManager rscManager = new ResourceManager("AutoPatcher.Resource.UserInfo",typeof(MainWindow).Assembly);
+            ResourceManager rscManager = new ResourceManager("AutoPatcher.Resource.UserInfo", typeof(MainWindow).Assembly);
 
-            con.Username= rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_ID");            
-            con.Password = rscManager.GetString($"{ModeType}_{PCType}_PW"); 
+            con.Username = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_ID");
+            con.Password = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_PW");
 
             ManagementScope managementScope = new ManagementScope(remoteName, con);
             managementScope.Options.Authentication = AuthenticationLevel.PacketPrivacy;
@@ -441,7 +449,7 @@ namespace AutoPatcher
             if (managementObjectCollection.Count > 0) return true;
 
             return false;
-            
+
             //try
             //{
             //    string query = $"SELECT * FROM Win32_Process WHERE Name LIKE '{processName}.exe'";
@@ -489,12 +497,12 @@ namespace AutoPatcher
             string localVersion = GetFileVersion(localFilePath);
             string remoteVersion = GetFileVersion(remoteFilePath);
 
-            if (!string.IsNullOrEmpty(localVersion) && !string.IsNullOrEmpty(remoteVersion))
-            {
-                // 버전 비교
-                return IsNewerVersion(localVersion, remoteVersion);
-            }
-            else
+            //if (!string.IsNullOrEmpty(localVersion) && !string.IsNullOrEmpty(remoteVersion))
+            //{
+            //    // 버전 비교
+            //    return IsNewerVersion(localVersion, remoteVersion);
+            //}
+            //else
             {
                 // 버전 정보가 없으면 파일 수정 날짜로 비교
                 DateTime localModified = File.GetLastWriteTime(localFilePath);
@@ -534,12 +542,13 @@ namespace AutoPatcher
 
             try
             {
-                if(!Directory.Exists(src))
+                if (!Directory.Exists(src))
                 {
                     System.Windows.MessageBox.Show($"{src} dosen't exist");
                     return false;
                 }
-                CompressDirectory(src, des);
+                //CompressDirectory(src, des);
+                BackupDirectory(src, des);
                 System.Windows.MessageBox.Show("Directory compressed successfully!");
             }
             catch (Exception ex)
@@ -548,6 +557,71 @@ namespace AutoPatcher
                 return false;
             }
             return true;
+        }
+
+        private void BackupDirectory(string src, string dest)
+        {
+            if (string.IsNullOrEmpty(src) || string.IsNullOrEmpty(dest)) return;
+            if (FilesToCheck.Count == 0) return;
+
+            // bin,config 구분
+            string backupType = (src.Contains("bin")) ? "bin" : "config";
+
+            // 오늘 날짜 폴더 생성
+            string backupPath = System.IO.Path.Combine(dest , DateTime.Now.ToString("yyMMdd"));
+            if (!Directory.Exists(backupPath)) Directory.CreateDirectory(backupPath);
+
+            backupPath = System.IO.Path.Combine(backupPath , backupType);
+            if (!Directory.Exists(backupPath)) Directory.CreateDirectory(backupPath);
+            // 폴더복사
+            CopyFolder(src, backupPath);
+        }
+
+        public static void CopyFile(string src, string dest)
+        {
+            if (File.Exists(src))
+            {
+                // 파일 생성
+                File.Copy(src, dest, true);                
+                Debug.WriteLine("File copied successfully!");
+            }
+            else
+            {
+                Debug.WriteLine("File not found at path: " + src);
+            }
+        }
+
+        private void CopyFolder(string src,string dest)
+        {            
+            if (Directory.Exists(src))
+            {
+                // 폴더 생성
+                if(!Directory.Exists(dest)) Directory.CreateDirectory(dest);
+                var files = Directory.GetFiles(src);
+
+                // 파일 복사
+                foreach (var file in files)
+                {
+                    string fileName = System.IO.Path.GetFileName(file);
+                    string destinationFilePath = System.IO.Path.Combine(dest, fileName);
+                    CopyFile(file, destinationFilePath);
+                }
+
+                // 폴더 복사 (재귀)
+                var directories = Directory.GetDirectories(src);
+                foreach (var directory in directories)
+                {
+                    string folderName = System.IO.Path.GetFileName(directory);
+                    string destinationSubFolderPath = System.IO.Path.Combine(dest, folderName);
+                    CopyFolder(directory, destinationSubFolderPath);
+                }
+                                
+                Debug.WriteLine("Folder copied successfully!");
+            }
+            else
+            {
+                Debug.WriteLine("Folder not found at path: " + src);
+            }
         }
 
         private void CompressDirectory(string sourceDir, string targetDir)
@@ -564,12 +638,15 @@ namespace AutoPatcher
                 Directory.CreateDirectory(targetDir);
             }
 
+            // bin,config 구분
+            string backupType = (sourceDir.Contains("bin")) ? "_bin" : "_config";
+            
             // 압축된 파일 이름은 소스 디렉터리의 이름 + .zip 
-            string zipFilePath = System.IO.Path.Combine(targetDir, DateTime.Now.ToString("yyMMdd") + "_back.zip");
+            string zipFilePath = System.IO.Path.Combine(targetDir, DateTime.Now.ToString("yyMMdd") + backupType + "_back.zip");
 
-            if(File.Exists(zipFilePath))
+            if (File.Exists(zipFilePath))
             {
-                zipFilePath = zipFilePath.Substring(0,zipFilePath.Length - 4);
+                zipFilePath = zipFilePath.Substring(0, zipFilePath.Length - 4);
                 zipFilePath += "_" + DateTime.Now.ToString("HH_mm_ss") + ".zip";
             }
             // 디렉터리를 압축
@@ -577,7 +654,7 @@ namespace AutoPatcher
         }
 
         // 백업 및 파일 교체
-        public void BackupAndReplaceFile(string remoteFolderPath, string fileName, string localFilePath)
+        public void ReplaceFile(string remoteFolderPath, string fileName, string localFilePath)
         {
             string remoteFilePath = System.IO.Path.Combine(remoteFolderPath, fileName);
             //string backupPath = System.IO.Path.Combine(backupRootPath, DateTime.Now.ToString("yyMMdd")) + "_back";
@@ -585,6 +662,7 @@ namespace AutoPatcher
 
             //string backupFilePath = System.IO.Path.Combine(backupPath, fileName);
             //File.Move(remoteFilePath, backupFilePath);
+            File.Delete(remoteFilePath);
             File.Copy(localFilePath, remoteFilePath);
             SetMessage($"[{remoteFolderPath}] 업데이트 완료: {fileName}");
             Debug.WriteLine($"[{remoteFolderPath}] 업데이트 완료: {fileName}");
@@ -599,32 +677,32 @@ namespace AutoPatcher
 
             try
             {
-                workbook = excelApp.Workbooks.Open(filePath);                
-                worksheet = workbook.Sheets[SelectedMode+1] as Excel.Worksheet;
+                workbook = excelApp.Workbooks.Open(filePath);
+                worksheet = workbook.Sheets[SelectedMode + 1] as Excel.Worksheet;
 
                 Excel.Range usedRange = worksheet.UsedRange;
                 int rowCount = usedRange.Rows.Count;
                 int colCount = usedRange.Columns.Count;
                 string temp_name = "";
                 for (int row = 2; row <= rowCount; row++) // 1행은 헤더로 스킵
-                {                    
+                {
                     string group_name = Convert.ToString(usedRange.Cells[row, 2]?.Value);
-                    
+
                     if (string.IsNullOrEmpty(group_name)) { group_name = temp_name; }
                     else { temp_name = group_name; }
-                    
+
                     DataGridItems.Add(new RowData
                     {
                         Group = group_name,
-                        Server = Convert.ToString(usedRange.Cells[row, 1]?.Value),
-                        LocalIP = Convert.ToString(usedRange.Cells[row, 3]?.Value),
+                        //Server         = Convert.ToString(usedRange.Cells[row, 1]?.Value),
+                        //LocalIP        = Convert.ToString(usedRange.Cells[row, 3]?.Value),
                         InspectionUnit = Convert.ToString(usedRange.Cells[row, 3]?.Value),
                         PC1 = Convert.ToString(usedRange.Cells[row, 4]?.Value),
                         PC2 = Convert.ToString(usedRange.Cells[row, 5]?.Value),
                         PC3 = Convert.ToString(usedRange.Cells[row, 6]?.Value),
                         PC4 = Convert.ToString(usedRange.Cells[row, 7]?.Value),
-                        PC5= Convert.ToString(usedRange.Cells[row, 8]?.Value),
-                        PC6= Convert.ToString(usedRange.Cells[row, 9]?.Value)
+                        PC5 = Convert.ToString(usedRange.Cells[row, 8]?.Value),
+                        PC6 = Convert.ToString(usedRange.Cells[row, 9]?.Value)
                     });
                 }
             }
@@ -666,7 +744,7 @@ namespace AutoPatcher
 
                 if (result == System.Windows.Forms.DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.SelectedPath))
                 {
-                    SourceDirectory = dialog.SelectedPath+"\\";
+                    SourceDirectory = dialog.SelectedPath + "\\";
                     LoadFilesFromFolder(dialog.SelectedPath);
                     lblCurDir.Content = dialog.SelectedPath;
                 }
@@ -682,46 +760,46 @@ namespace AutoPatcher
                 return;
             }
             Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
-            if(dlg.ShowDialog() ==true)
-            {   
-                if(dlg.CheckFileExists==true)
+            if (dlg.ShowDialog() == true)
+            {
+                if (dlg.CheckFileExists == true)
                 {
                     SetMessage("Loading...");
                     ExcelPath = dlg.FileName;
                     LoadExcelData(dlg.FileName);
                     lblCurExcel.Content = dlg.FileName;
                     SetMessage("Loaded patch list");
-                }                
+                }
             }
         }
 
         private void LoadFilesFromFolder(string folderPath)
         {
             try
-            {   
+            {
                 // Clear previous files
                 FileList.Clear();
                 FilesToCheck.Clear();
                 FoldersToCheck.Clear();
 
                 // Get all files in the folder
-                var files = Directory.GetFiles(folderPath,"*",SearchOption.AllDirectories);
+                var files = Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories);
                 var folders = Directory.GetDirectories(folderPath, "*", SearchOption.AllDirectories);
 
-                foreach(var folder in folders)
+                foreach (var folder in folders)
                 {
-                    FileList.Add(folder);                    
+                    FileList.Add(folder);
                 }
                 foreach (var file in files)
                 {
-                    FileList.Add(file);                    
+                    FileList.Add(file);
                 }
 
                 var res = GetFileListFromDirectory(SourceDirectory);
                 FilesToCheck = res.files;
                 FoldersToCheck = res.folders;
-                
-                
+
+
             }
             catch (Exception ex)
             {
@@ -748,34 +826,35 @@ namespace AutoPatcher
 
             SetMessage("Start Patching");
             if (StartAutoPatch()) SetMessage("Complete");
+            else SetMessage("Patch fail");
         }
 
         private void CheckBox_Checked(object sender, RoutedEventArgs e)
         {
             var checkBox = sender as System.Windows.Controls.CheckBox;
             var dataItem = checkBox.DataContext as RowData;
-            
+
             string ip = "";
 
-            bool flag  = (checkBox.IsChecked == true) ? true : false;   
+            bool flag = (checkBox.IsChecked == true) ? true : false;
             if (checkBox.Name.Contains("Main") && dataItem != null)
             {
-                ip = dataItem.PC1;                
+                ip = dataItem.PC1;
             }
 
             else if (checkBox.Name.Contains("V1") && dataItem != null)
             {
-                ip = dataItem.PC2;               
+                ip = dataItem.PC2;
             }
 
             else if (checkBox.Name.Contains("V2") && dataItem != null)
             {
-                ip = dataItem.PC3;                
+                ip = dataItem.PC3;
             }
 
             else if (checkBox.Name.Contains("V3") && dataItem != null)
             {
-                ip = dataItem.PC4;                
+                ip = dataItem.PC4;
             }
 
             else if (checkBox.Name.Contains("V4") && dataItem != null)
@@ -792,40 +871,40 @@ namespace AutoPatcher
             {
                 if (flag) IPAddresses.Add(ip);
                 else IPAddresses.Remove(ip);
-            }            
+            }
         }
 
         private void AllCheckbox_checked(object sender, RoutedEventArgs e)
         {
             var checkBox = sender as System.Windows.Controls.CheckBox;
-            bool flag = (checkBox.IsChecked == true) ? true : false;  
-            if(checkBox.Name.Contains("Main"))
+            bool flag = (checkBox.IsChecked == true) ? true : false;
+            if (checkBox.Name.Contains("Main"))
             {
                 foreach (var item in DataGridItems)
                 {
-                    item.MainSelected = flag;                    
+                    item.MainSelected = flag;
                 }
             }
-            else if(checkBox.Name.Contains("V1"))
+            else if (checkBox.Name.Contains("V1"))
             {
                 foreach (var item in DataGridItems)
                 {
-                    item.V1Selected = flag;                    
+                    item.V1Selected = flag;
                 }
             }
-            else if(checkBox.Name.Contains("V2"))
+            else if (checkBox.Name.Contains("V2"))
             {
                 foreach (var item in DataGridItems)
                 {
                     item.V2Selected = flag;
-                   
+
                 }
             }
-            else if(checkBox.Name.Contains("V3"))
+            else if (checkBox.Name.Contains("V3"))
             {
                 foreach (var item in DataGridItems)
                 {
-                    item.V3Selected = flag;                    
+                    item.V3Selected = flag;
                 }
             }
 
@@ -847,7 +926,7 @@ namespace AutoPatcher
 
         }
 
-        private void AllCheckbox_unchecked(object sender,RoutedEventArgs e)
+        private void AllCheckbox_unchecked(object sender, RoutedEventArgs e)
         {
             var checkBox = sender as System.Windows.Controls.CheckBox;
 
@@ -884,7 +963,7 @@ namespace AutoPatcher
                 }
             }
 
-            else if(checkBox.Name.Contains("V4"))
+            else if (checkBox.Name.Contains("V4"))
             {
                 foreach (var item in DataGridItems)
                 {
@@ -893,7 +972,7 @@ namespace AutoPatcher
                 }
             }
 
-            else if(checkBox.Name.Contains("V5"))
+            else if (checkBox.Name.Contains("V5"))
             {
                 foreach (var item in DataGridItems)
                 {
@@ -922,32 +1001,32 @@ namespace AutoPatcher
                     ModeType = "SII";
                     _ModeArray[1] = true;
                 }
-                
+
                 else if (btn.Name.Contains("BGA"))
                 {
                     ModeType = "BGA";
                     _ModeArray[2] = true;
                 }
-                
+
                 else if (btn.Name.Contains("COB"))
                 {
                     ModeType = "COB";
                     _ModeArray[3] = true;
                 }
-                
+
                 if (!string.IsNullOrEmpty(ExcelPath))
                 {
                     SetMessage($"Loading ...");
                     Initialize();
                     LoadExcelData(ExcelPath);
-                    SetMessage($"Loaded machin list");
+                    SetMessage($"Loaded machine list");
                 }
             }
             #endregion
             #region PC Type(Main,Vision)
             else if (btn.GroupName.Contains("PCType"))
             {
-                for(int i=0; i<2; i++) _TypeArray[i] = false;
+                for (int i = 0; i < 2; i++) _TypeArray[i] = false;
 
                 if (btn.Name.Contains("Main"))
                 {
@@ -956,14 +1035,14 @@ namespace AutoPatcher
                     ProcessNameToCheck = "HDSInspector.exe";
                     lblProcName.Content = ProcessNameToCheck;
                 }
-                
-                else if(btn.Name.Contains("Vision"))
+
+                else if (btn.Name.Contains("Vision"))
                 {
                     _TypeArray[1] = false;
                     PCType = "Vision";
                     ProcessNameToCheck = "IS.exe";
                     lblProcName.Content = ProcessNameToCheck;
-                }                
+                }
             }
             #endregion
         }
@@ -1035,26 +1114,26 @@ namespace AutoPatcher
         private bool v5Selected;
         private bool mainSelected;
 
-        public bool MainSelected 
-        { 
+        public bool MainSelected
+        {
             get { return mainSelected; }
             set { mainSelected = value; OnPropertyChanged(nameof(MainSelected)); }
         }
-        public bool V1Selected 
+        public bool V1Selected
         {
             get { return v1Selected; }
             set { v1Selected = value; OnPropertyChanged(nameof(V1Selected)); }
         }
-        public bool V2Selected 
+        public bool V2Selected
         {
             get { return v2Selected; }
             set { v2Selected = value; OnPropertyChanged(nameof(V2Selected)); }
         }
-        public bool V3Selected 
+        public bool V3Selected
         {
             get { return v3Selected; }
             set { v3Selected = value; OnPropertyChanged(nameof(V3Selected)); }
-            
+
         }
 
         public bool V4Selected
@@ -1076,13 +1155,13 @@ namespace AutoPatcher
         public string PC1 { get; set; }
         public string PC2 { get; set; }
         public string PC3 { get; set; }
-        public string PC4 { get; set; }        
+        public string PC4 { get; set; }
         public string PC5 { get; set; }
         public string PC6 { get; set; }
 
         protected void OnPropertyChanged(string propertyName)
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));           
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }
