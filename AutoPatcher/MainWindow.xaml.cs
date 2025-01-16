@@ -132,14 +132,14 @@ namespace AutoPatcher
         public MainWindow()
         {
             InitializeComponent();
-            DataGridItems = new ObservableCollection<RowData>();
-            FileList = new ObservableCollection<string>();
-            FilesToCheck = new List<string>();
-            IPAddresses = new List<string>();
-            FoldersToCheck = new List<string>();
+            DataGridItems           = new ObservableCollection<RowData>();
+            FileList                = new ObservableCollection<string>();
+            FilesToCheck            = new List<string>();
+            IPAddresses             = new List<string>();
+            FoldersToCheck          = new List<string>();
             //LoadExcelData(@"D:\WPF\test_lists.xlsx"); // 엑셀 파일 경로
             //SetupDataGridGrouping();
-            DataGrid.ItemsSource = DataGridItems;
+            DataGrid.ItemsSource    = DataGridItems;
             FileListBox.ItemsSource = FileList;          
         }
 
@@ -154,12 +154,10 @@ namespace AutoPatcher
             this.SizeChanged += new SizeChangedEventHandler(MainWindow_SizeChanged);
         }
 
-
         void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             ChangeSize(e.NewSize.Width, e.NewSize.Height);
         }
-
 
         private void ChangeSize(double width, double height)
         {
@@ -202,7 +200,7 @@ namespace AutoPatcher
                 return false;
             }
 
-            if (FilesToCheck.Count == 0 || FoldersToCheck.Count == 0)
+            if (FilesToCheck.Count == 0)
             {
                 if (string.IsNullOrEmpty(SourceDirectory))
                 {
@@ -243,8 +241,9 @@ namespace AutoPatcher
                 }
                 catch
                 {
-                    System.Windows.MessageBox.Show("Does not exist path");
-                    SetWarnning("Does not exist path");
+                    System.Windows.MessageBox.Show($"[{ip}]_Does not exist path");
+                    SetWarnning($"[{ip}]_Does not exist path");
+                    continue;
                 }
                 #endregion
 
@@ -263,8 +262,9 @@ namespace AutoPatcher
                     #region ping
                     if (!GetPingResult(ip))
                     {
-                        SetWarnning($"No response {ip}");
+                        SetWarnning($"[{ip}] _ No response ");
                         System.Windows.MessageBox.Show($"No response {ip}");
+                        ChangeCellColor(ip, Brushes.IndianRed);
                         continue;
                     }
                     #endregion
@@ -290,6 +290,7 @@ namespace AutoPatcher
                         SetMessage($"[{ip}] _ [{strBackUpPath}] back up..");
                         if (!CheckBackupFolder(strBackUpPath, remoteBackupPath))
                             SetWarnning($"{strBackUpPath} dosen't exist");
+                        else SetMessage($"[{ip}] _ [{strBackUpPath}] Backup successfully!");
                     }
                     #endregion
 
@@ -299,7 +300,7 @@ namespace AutoPatcher
                     {
                         if (!Directory.Exists(remoteFolderPath + "\\" + folder))
                         {
-                            Directory.CreateDirectory(remotePath + folder);
+                            Directory.CreateDirectory(remoteFolderPath + "\\" + folder);
                         }
                     }
                     // 파일 업데이트 작업
@@ -316,25 +317,30 @@ namespace AutoPatcher
 
                         if (IsFileUpdateNeeded(localFilePath, remoteFilePath))
                         {
+                            
                             Debug.WriteLine($"[{ip}] 업데이트 필요: {fileName}. 백업 및 교체를 진행합니다.");
+                            SetMessage($"[{ip}] _ Update: {fileName}. Backup and replace in progress.");
                             ReplaceFile(remoteFolderPath, fileName, localFilePath);
                         }
                         else
                         {
                             Debug.WriteLine($"[{ip}] 최신 상태 유지: {fileName}");
+                            SetMessage($"[{ip}] _ Skip : {fileName}");
                         }
                     }
                     SetMessage($"[{ip}] _ patch completed");
+                    ChangeCellColor(ip, Brushes.LimeGreen);
                     #endregion
                 }
                 catch (Exception ex)
                 {
-                    SetMessage($"[{ip}] 오류 발생: {ex.Message}");
+                    SetMessage($"[{ip}] _ Error occured : {ex.Message}");
                     Debug.WriteLine($"[{ip}] 오류 발생: {ex.Message}");
+                    ChangeCellColor(ip, Brushes.IndianRed);
                     continue;
                 }
             }
-
+            
             Debug.WriteLine("모든 작업이 완료되었습니다.");
             Console.ReadLine();
             return true;
@@ -365,38 +371,12 @@ namespace AutoPatcher
                             {
                                 // 텍스트가 일치하면 셀 배경 색상 변경
                                 cell.Background = color; // 원하는 색상
+                                break;
                             }
                         }
                     }                    
                 }
             }
-        }
-
-        public void SetPatchComplete(string ip)
-        {
-            var row = GetDataGridRows(DataGrid);
-
-            foreach(DataGridRow r in row)
-            {
-                try
-                {
-                   foreach(DataGridColumn c in DataGrid.Columns)
-                    {
-                        if(c.GetCellContent(r) is TextBlock tb)
-                        {
-                            if(tb.Text==ip)
-                            {
-
-                            }
-                        }
-                    }
-                }
-                catch
-                {
-
-                }
-            }
-            
         }
 
         private IEnumerable<T> GetVisualChildren<T>(DependencyObject depObj) where T : DependencyObject
@@ -413,18 +393,6 @@ namespace AutoPatcher
                 }
             }
         }
-
-        IEnumerable<DataGridRow> GetDataGridRows(System.Windows.Controls.DataGrid grid)
-        {
-            var src = DataGrid.ItemsSource as IEnumerable;
-            if (null == src) yield return null;
-            foreach(var item in src)
-            {
-                var row = grid.ItemContainerGenerator.ContainerFromItem(item) as DataGridRow;
-                if(null !=row) yield return row;
-            }
-        }
-        
 
         private bool GetPingResult(string desIP)
         {
@@ -443,6 +411,7 @@ namespace AutoPatcher
                 return false;
             }
         }
+
         public string GetRelativePath(string basePath, string targetPath)
         {
             FileAttributes fa = File.GetAttributes(targetPath);
@@ -497,11 +466,13 @@ namespace AutoPatcher
                 List<string> files = new List<string>();
                 foreach (string folder in Directory.GetDirectories(directoryPath, "*", SearchOption.AllDirectories))
                 {
+                    if (folder.Contains("CAM")) continue;
                     string relative = GetRelativePath(directoryPath, folder);
                     folders.Add(relative);
                 }
                 foreach (string filePath in Directory.GetFiles(directoryPath, "*.*", SearchOption.AllDirectories)) //"*.dll
                 {
+                    if (filePath.Contains("CAM")) continue;
                     // 파일 이름만 추가 (상대 경로)
                     string relativePath = GetRelativePath(directoryPath, filePath);
                     files.Add(relativePath);
@@ -637,16 +608,19 @@ namespace AutoPatcher
             {
                 if (!Directory.Exists(src))
                 {
-                    System.Windows.MessageBox.Show($"{src} dosen't exist");
+                    System.Windows.MessageBox.Show($"{src} doesn't exist");                    
                     return false;
                 }
                 //CompressDirectory(src, des);
                 BackupDirectory(src, des);
-                System.Windows.MessageBox.Show("Directory compressed successfully!");
+                
+                //System.Windows.MessageBox.Show("Directory compressed successfully!");
+                
             }
             catch (Exception ex)
             {
                 System.Windows.MessageBox.Show($"Error: {ex.Message}");
+                SetWarnning($"Error: {ex.Message}");
                 return false;
             }
             return true;
@@ -887,6 +861,11 @@ namespace AutoPatcher
                 }
                 foreach (var file in files)
                 {
+                    if (file.Contains("CAM"))
+                    {
+                        FilesToCheck.Remove(file);
+                        continue;
+                    }
                     FileList.Add(file);
                 }
 
@@ -912,18 +891,16 @@ namespace AutoPatcher
             }
 
             var tempres = FilesToCheck.Find(x => x.Contains(ProcessNameToCheck));
-            //if (string.IsNullOrEmpty(tempres))
-            //{
-            //    SetWarnning(string.Format("Does not including process {0}", ProcessNameToCheck));
-            //    MessageBox.Show(string.Format("Does not including process {0}", ProcessNameToCheck));
-            //    return;
-            //}
-
-            ChangeCellColor("192.168.30.100" ,Brushes.LimeGreen);
+            if (string.IsNullOrEmpty(tempres))
+            {
+                SetWarnning(string.Format("Does not including process {0}", ProcessNameToCheck));
+                System.Windows.MessageBox.Show(string.Format("Does not including process {0}", ProcessNameToCheck));
+                return;
+            }
 
             SetMessage("Start Patching");
-            if (StartAutoPatch()) SetMessage("Complete");
-            else SetMessage("Patch fail");
+            if (StartAutoPatch()) SetMessage("All completed");
+            else SetWarnning("Failed to patch");
         }
 
         private void CheckBox_Checked(object sender, RoutedEventArgs e)
