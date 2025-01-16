@@ -94,7 +94,7 @@
                             </DataGridTemplateColumn.Header>
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <StackPanel Orientation="Horizontal">
+                                    <StackPanel x:Name="StackPanel" Orientation="Horizontal">
                                         <CheckBox IsChecked="{Binding MainSelected}" Name="chkMain" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked" ></CheckBox>
                                         <TextBlock Text="{Binding PC1}" Width="120"></TextBlock>
                                     </StackPanel>

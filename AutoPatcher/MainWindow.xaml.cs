@@ -27,6 +27,8 @@ using System.Resources;
 using System.Net.NetworkInformation;
 using System.Windows.Forms;
 using System.Security.Cryptography;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Button;
+using System.Collections;
 
 namespace AutoPatcher
 {
@@ -138,10 +140,7 @@ namespace AutoPatcher
             //LoadExcelData(@"D:\WPF\test_lists.xlsx"); // 엑셀 파일 경로
             //SetupDataGridGrouping();
             DataGrid.ItemsSource = DataGridItems;
-            FileListBox.ItemsSource = FileList;
-            string src = "D:\\BGA_AVI_MAIN\\bin";
-            string des = "D:\\TEST\\Back_up";
-            BackupDirectory(src, des);
+            FileListBox.ItemsSource = FileList;          
         }
 
         void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -171,7 +170,7 @@ namespace AutoPatcher
             rootElement.LayoutTransform = scale;
         }
 
-        public void Initialize()
+        public void InitItems()
         {
             DataGridItems.Clear();
             IPAddresses.Clear();
@@ -249,11 +248,12 @@ namespace AutoPatcher
                 }
                 #endregion
 
-
+                #region set path(backup,source)
                 string remoteFolderPath = remotePath + "\\bin";
                 string remoteBackupPath = remotePath + "\\backup";
                 string remoteConfigPath = remotePath + "\\config";
                 string[] BackupPathList = { remoteFolderPath, remoteConfigPath };
+                #endregion
 
                 SetMessage($"Access to [{ip}]...");
                 Debug.WriteLine($"[{ip}] 접근 중...");
@@ -264,7 +264,7 @@ namespace AutoPatcher
                     if (!GetPingResult(ip))
                     {
                         SetWarnning($"No response {ip}");
-                        System.Windows.MessageBox.Show($"No respose {ip}");
+                        System.Windows.MessageBox.Show($"No response {ip}");
                         continue;
                     }
                     #endregion
@@ -329,16 +329,102 @@ namespace AutoPatcher
                 }
                 catch (Exception ex)
                 {
+                    SetMessage($"[{ip}] 오류 발생: {ex.Message}");
                     Debug.WriteLine($"[{ip}] 오류 발생: {ex.Message}");
-                    return false;
+                    continue;
                 }
             }
 
             Debug.WriteLine("모든 작업이 완료되었습니다.");
             Console.ReadLine();
-
             return true;
         }
+
+        public void ChangeCellColor(string val,SolidColorBrush color)
+        {
+            // DataGrid의 각 행과 셀을 순회합니다.
+            foreach (var row in this.DataGrid.Items)
+            {
+                var dataGridRow = (DataGridRow)this.DataGrid.ItemContainerGenerator.ContainerFromItem(row);
+                if (dataGridRow == null) continue;
+
+                foreach (System.Windows.Controls.DataGridCell cell in GetVisualChildren<System.Windows.Controls.DataGridCell>(dataGridRow))
+                {
+                    var column = this.DataGrid.Columns[cell.Column.DisplayIndex];
+                    
+                    // 셀의 내용을 가져옵니다.
+                    var cellContent = column.GetCellContent(row);
+                    if(cellContent is ContentPresenter cp)
+                    {
+                        
+                        var sp = cp.ContentTemplate.FindName("StackPanel", cp) as StackPanel;
+                        if(sp != null)
+                        {
+                            var textBlock = sp.Children.OfType<TextBlock>().FirstOrDefault();
+                            if (textBlock != null && textBlock.Text == val)
+                            {
+                                // 텍스트가 일치하면 셀 배경 색상 변경
+                                cell.Background = color; // 원하는 색상
+                            }
+                        }
+                    }                    
+                }
+            }
+        }
+
+        public void SetPatchComplete(string ip)
+        {
+            var row = GetDataGridRows(DataGrid);
+
+            foreach(DataGridRow r in row)
+            {
+                try
+                {
+                   foreach(DataGridColumn c in DataGrid.Columns)
+                    {
+                        if(c.GetCellContent(r) is TextBlock tb)
+                        {
+                            if(tb.Text==ip)
+                            {
+
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+
+                }
+            }
+            
+        }
+
+        private IEnumerable<T> GetVisualChildren<T>(DependencyObject depObj) where T : DependencyObject
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(depObj); i++)
+            {
+                var child = VisualTreeHelper.GetChild(depObj, i);
+                if (child is T)
+                    yield return (T)child;
+
+                foreach (var childOfChild in GetVisualChildren<T>(child))
+                {
+                    yield return childOfChild;
+                }
+            }
+        }
+
+        IEnumerable<DataGridRow> GetDataGridRows(System.Windows.Controls.DataGrid grid)
+        {
+            var src = DataGrid.ItemsSource as IEnumerable;
+            if (null == src) yield return null;
+            foreach(var item in src)
+            {
+                var row = grid.ItemContainerGenerator.ContainerFromItem(item) as DataGridRow;
+                if(null !=row) yield return row;
+            }
+        }
+        
 
         private bool GetPingResult(string desIP)
         {
@@ -432,23 +518,30 @@ namespace AutoPatcher
         // 원격 프로그램 실행 여부 확인 (wmic로 수정필요)
         bool IsProgramRunning(string ip, string processName)
         {
-            string remoteName = @"\\" + ip + @"\root\cimv2";
+            try
+            {
+                string remoteName = @"\\" + ip + @"\root\cimv2";
 
-            ConnectionOptions con = new ConnectionOptions();
-            ResourceManager rscManager = new ResourceManager("AutoPatcher.Resource.UserInfo", typeof(MainWindow).Assembly);
+                ConnectionOptions con = new ConnectionOptions();
+                ResourceManager rscManager = new ResourceManager("AutoPatcher.Resource.UserInfo", typeof(MainWindow).Assembly);
 
-            con.Username = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_ID");
-            con.Password = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_PW");
+                con.Username = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_ID");
+                con.Password = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_PW");
 
-            ManagementScope managementScope = new ManagementScope(remoteName, con);
-            managementScope.Options.Authentication = AuthenticationLevel.PacketPrivacy;
-            managementScope.Connect();
-            ObjectQuery objectQuery = new ObjectQuery($"SELECT * FROM Win32_Process Where Name = '{processName}'");
-            ManagementObjectSearcher managementObjectSearcher = new ManagementObjectSearcher(managementScope, objectQuery);
-            ManagementObjectCollection managementObjectCollection = managementObjectSearcher.Get();
-            if (managementObjectCollection.Count > 0) return true;
-
-            return false;
+                ManagementScope managementScope = new ManagementScope(remoteName, con);
+                managementScope.Options.Authentication = AuthenticationLevel.PacketPrivacy;
+                managementScope.Connect();
+                ObjectQuery objectQuery = new ObjectQuery($"SELECT * FROM Win32_Process Where Name = '{processName}'");
+                ManagementObjectSearcher managementObjectSearcher = new ManagementObjectSearcher(managementScope, objectQuery);
+                ManagementObjectCollection managementObjectCollection = managementObjectSearcher.Get();
+                if (managementObjectCollection.Count > 0) return true;
+                else return false;
+            }
+            catch
+            {
+                SetWarnning("Check process error");
+                return false;
+            }
 
             //try
             //{
@@ -494,8 +587,8 @@ namespace AutoPatcher
         bool IsFileUpdateNeeded(string localFilePath, string remoteFilePath)
         {
             // 로컬 파일 버전 가져오기
-            string localVersion = GetFileVersion(localFilePath);
-            string remoteVersion = GetFileVersion(remoteFilePath);
+            //string localVersion = GetFileVersion(localFilePath);
+            //string remoteVersion = GetFileVersion(remoteFilePath);
 
             //if (!string.IsNullOrEmpty(localVersion) && !string.IsNullOrEmpty(remoteVersion))
             //{
@@ -571,8 +664,10 @@ namespace AutoPatcher
             string backupPath = System.IO.Path.Combine(dest , DateTime.Now.ToString("yyMMdd"));
             if (!Directory.Exists(backupPath)) Directory.CreateDirectory(backupPath);
 
+            // bin,config 생성
             backupPath = System.IO.Path.Combine(backupPath , backupType);
             if (!Directory.Exists(backupPath)) Directory.CreateDirectory(backupPath);
+
             // 폴더복사
             CopyFolder(src, backupPath);
         }
@@ -824,6 +919,8 @@ namespace AutoPatcher
             //    return;
             //}
 
+            ChangeCellColor("192.168.30.100" ,Brushes.LimeGreen);
+
             SetMessage("Start Patching");
             if (StartAutoPatch()) SetMessage("Complete");
             else SetMessage("Patch fail");
@@ -833,7 +930,7 @@ namespace AutoPatcher
         {
             var checkBox = sender as System.Windows.Controls.CheckBox;
             var dataItem = checkBox.DataContext as RowData;
-
+            
             string ip = "";
 
             bool flag = (checkBox.IsChecked == true) ? true : false;
@@ -1017,7 +1114,7 @@ namespace AutoPatcher
                 if (!string.IsNullOrEmpty(ExcelPath))
                 {
                     SetMessage($"Loading ...");
-                    Initialize();
+                    InitItems();
                     LoadExcelData(ExcelPath);
                     SetMessage($"Loaded machine list");
                 }
