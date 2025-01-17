@@ -39,8 +39,6 @@ namespace AutoPatcher
     {
         #region member
 
-
-
         #region radio button (LF,SII,BGA,COB)
         private bool[] _ModeArray = new bool[4] { true, false, false, false };
         public bool[] ModeArray { get { return _ModeArray; } }
@@ -52,7 +50,6 @@ namespace AutoPatcher
         public bool[] TypeArray { get { return _TypeArray; } }
         public int SelectType { get { return Array.IndexOf(_TypeArray, true); } }
         #endregion
-
 
         #region set all check (main,vision1,2,3)
         private bool[] _isAllSelected = new bool[4] { false, false, false, false };
@@ -138,7 +135,7 @@ namespace AutoPatcher
             IPAddresses             = new List<string>();
             FoldersToCheck          = new List<string>();            
             DataGrid.ItemsSource    = DataGridItems;
-            FileListBox.ItemsSource = FileList;          
+            FileListBox.ItemsSource = FileList;                      
         }
 
         void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -172,6 +169,8 @@ namespace AutoPatcher
             IPAddresses.Clear();
         }
 
+        #region Update result
+
         public void SetMessage(string msg)
         {
             this.lblStatus.Content = msg;
@@ -184,13 +183,133 @@ namespace AutoPatcher
             this.lblStatus.Foreground = new SolidColorBrush(Colors.Red);
         }
 
+        public void SetComplete(string ip)
+        {
+            ChangeCellColor(ip, Brushes.OrangeRed);
+        }
+
+        public void SetFail(string ip)
+        {
+            ChangeCellColor(ip, Brushes.LimeGreen);
+        }
+
+        private void ChangeCellColor(string val, SolidColorBrush color)
+        {
+            // DataGrid의 각 행과 셀을 순회합니다.
+            foreach (var row in this.DataGrid.Items)
+            {
+                var dataGridRow = (DataGridRow)this.DataGrid.ItemContainerGenerator.ContainerFromItem(row);
+                if (dataGridRow == null) continue;
+
+                foreach (System.Windows.Controls.DataGridCell cell in GetVisualChildren<System.Windows.Controls.DataGridCell>(dataGridRow))
+                {
+                    var column = this.DataGrid.Columns[cell.Column.DisplayIndex];
+
+                    // 셀의 내용을 가져옵니다.
+                    var cellContent = column.GetCellContent(row);
+                    if (cellContent is ContentPresenter cp)
+                    {
+
+                        var sp = cp.ContentTemplate.FindName("StackPanel", cp) as StackPanel;
+                        if (sp != null)
+                        {
+                            var textBlock = sp.Children.OfType<TextBlock>().FirstOrDefault();
+                            if (textBlock != null && textBlock.Text == val)
+                            {
+                                // 텍스트가 일치하면 셀 배경 색상 변경
+                                cell.Background = color; // 원하는 색상
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private IEnumerable<T> GetVisualChildren<T>(DependencyObject depObj) where T : DependencyObject
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(depObj); i++)
+            {
+                var child = VisualTreeHelper.GetChild(depObj, i);
+                if (child is T)
+                    yield return (T)child;
+
+                foreach (var childOfChild in GetVisualChildren<T>(child))
+                {
+                    yield return childOfChild;
+                }
+            }
+        }
+
+        private void LoadExcelData(string filePath)
+        {
+            DataGridItems.Clear();
+            var excelApp = new Excel.Application();
+            Excel.Workbook workbook = null;
+            Excel.Worksheet worksheet = null;
+
+            try
+            {
+                workbook = excelApp.Workbooks.Open(filePath);
+                worksheet = workbook.Sheets[SelectedMode + 1] as Excel.Worksheet;
+
+                Excel.Range usedRange = worksheet.UsedRange;
+                int rowCount = usedRange.Rows.Count;
+                int colCount = usedRange.Columns.Count;
+                string temp_name = "";
+                for (int row = 2; row <= rowCount; row++) // 1행은 헤더로 스킵
+                {
+                    string group_name = Convert.ToString(usedRange.Cells[row, 2]?.Value);
+
+                    if (string.IsNullOrEmpty(group_name)) { group_name = temp_name; }
+                    else { temp_name = group_name; }
+
+                    DataGridItems.Add(new RowData
+                    {
+                        Group          = group_name,                        
+                        InspectionUnit = Convert.ToString(usedRange.Cells[row, 3]?.Value),
+                        PC1            = Convert.ToString(usedRange.Cells[row, 4]?.Value),
+                        PC2            = Convert.ToString(usedRange.Cells[row, 5]?.Value),
+                        PC3            = Convert.ToString(usedRange.Cells[row, 6]?.Value),
+                        PC4            = Convert.ToString(usedRange.Cells[row, 7]?.Value),
+                        PC5            = Convert.ToString(usedRange.Cells[row, 8]?.Value),
+                        PC6            = Convert.ToString(usedRange.Cells[row, 9]?.Value)
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Error loading Excel data: {ex.Message}");
+            }
+            finally
+            {
+                workbook?.Close(false);
+                excelApp?.Quit();
+            }
+        }
+
+        private void SetupDataGridGrouping()
+        {
+            //CollectionView view = (CollectionView)CollectionViewSource.GetDefaultView(DataGridItems);
+            //PropertyGroupDescription groupDescription = new PropertyGroupDescription("Group");
+            //view.GroupDescriptions.Add(groupDescription);
+
+            // CollectionView를 가져와서 그룹화를 설정
+            ICollectionView view = CollectionViewSource.GetDefaultView(DataGridItems);
+            view.GroupDescriptions.Clear();
+            view.GroupDescriptions.Add(new PropertyGroupDescription("Group"));
+        }
+
+        #endregion
+
+        #region Patch
         /// <summary>
         /// Start Patch in ip
         /// </summary>
         /// <param name="ip">ip</param>
-        /// <param name="BackupPathList">BackupPathList (bin,config)</param>
-        /// <param name="remoteBackupPath">remoteBackupPath (\\backup)</param>
-        /// <param name="remoteFolderPath">remoteFolderPath (Excute path (bin))</param>
+        /// <param name="BackupPathList">(bin,config)</param>
+        /// <param name="remoteBackupPath">(\\backup)</param>
+        /// <param name="remoteFolderPath">Excute path (bin)</param>
         /// <returns></returns>
         private bool Patch(string ip ,string[] BackupPathList,string remoteBackupPath,string remoteFolderPath)
         {
@@ -280,16 +399,6 @@ namespace AutoPatcher
             return true;
         }
 
-        public void SetComplete(string ip)
-        {
-            ChangeCellColor(ip, Brushes.OrangeRed);
-        }
-
-        public void SetFail(string ip)
-        {
-            ChangeCellColor(ip, Brushes.LimeGreen);
-        }
-
         public bool StartAutoPatch()
         {
             if (SourceDirectory == null)
@@ -365,10 +474,10 @@ namespace AutoPatcher
                 string[] BackupPathList = { remoteFolderPath, remoteConfigPath };
                 #endregion
 
+                #region Start Patch
                 SetMessage($"Access to [{ip}]...");
                 Debug.WriteLine($"[{ip}] 접근 중...");
-
-                #region Start Patch
+                
                 try
                 {
                     if(Patch(ip,BackupPathList,remoteBackupPath,remoteFolderPath))
@@ -395,146 +504,6 @@ namespace AutoPatcher
             Debug.WriteLine("모든 작업이 완료되었습니다.");
             Console.ReadLine();
             return true;
-        }
-
-        private void ChangeCellColor(string val,SolidColorBrush color)
-        {
-            // DataGrid의 각 행과 셀을 순회합니다.
-            foreach (var row in this.DataGrid.Items)
-            {
-                var dataGridRow = (DataGridRow)this.DataGrid.ItemContainerGenerator.ContainerFromItem(row);
-                if (dataGridRow == null) continue;
-
-                foreach (System.Windows.Controls.DataGridCell cell in GetVisualChildren<System.Windows.Controls.DataGridCell>(dataGridRow))
-                {
-                    var column = this.DataGrid.Columns[cell.Column.DisplayIndex];
-                    
-                    // 셀의 내용을 가져옵니다.
-                    var cellContent = column.GetCellContent(row);
-                    if(cellContent is ContentPresenter cp)
-                    {
-                        
-                        var sp = cp.ContentTemplate.FindName("StackPanel", cp) as StackPanel;
-                        if(sp != null)
-                        {
-                            var textBlock = sp.Children.OfType<TextBlock>().FirstOrDefault();
-                            if (textBlock != null && textBlock.Text == val)
-                            {
-                                // 텍스트가 일치하면 셀 배경 색상 변경
-                                cell.Background = color; // 원하는 색상
-                                break;
-                            }
-                        }
-                    }                    
-                }
-            }
-        }
-
-        private IEnumerable<T> GetVisualChildren<T>(DependencyObject depObj) where T : DependencyObject
-        {
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(depObj); i++)
-            {
-                var child = VisualTreeHelper.GetChild(depObj, i);
-                if (child is T)
-                    yield return (T)child;
-
-                foreach (var childOfChild in GetVisualChildren<T>(child))
-                {
-                    yield return childOfChild;
-                }
-            }
-        }
-
-        private bool GetPingResult(string desIP)
-        {
-            try
-            {
-                using (Ping ping = new Ping())
-                {
-                    PingReply reply = ping.Send(desIP, 5000); // 5000ms
-
-                    return reply.Status == IPStatus.Success;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error: {ex.Message}");
-                return false;
-            }
-        }
-
-        public string GetRelativePath(string basePath, string targetPath)
-        {
-            FileAttributes fa = File.GetAttributes(targetPath);
-            Uri baseUri = null;
-            Uri targetUri = null;
-
-            if ((fa & FileAttributes.Directory) == FileAttributes.Directory)
-            {
-                baseUri = new Uri(AppendDirectorySeparator(basePath));
-                targetUri = new Uri(AppendDirectorySeparator(targetPath));
-
-                //return Uri.UnescapeDataString(relativeUri.ToString().Replace('/', System.IO.Path.DirectorySeparatorChar));
-            }
-            else
-            {
-                baseUri = new Uri(basePath);
-                targetUri = new Uri(targetPath);
-
-                //return Uri.UnescapeDataString(relativeUri.ToString());
-            }
-
-            Uri relativeUri = baseUri.MakeRelativeUri(targetUri);
-            string relativePath = Uri.UnescapeDataString(relativeUri.ToString().Replace('/', System.IO.Path.DirectorySeparatorChar));
-            //relativePath = targetPath.Substring((basePath.Length+2));
-
-            //if ((fa & FileAttributes.Directory) != FileAttributes.Directory)
-            //{
-            //    // 상대 경로에서 디렉터리 경로를 제외하고 파일명만 리턴
-            //    return relativePath.Substring(relativePath.LastIndexOf(System.IO.Path.DirectorySeparatorChar) + 1);
-            //}
-
-            return relativePath;
-
-        }
-
-        private string AppendDirectorySeparator(string path)
-        {
-            if (!path.EndsWith(System.IO.Path.DirectorySeparatorChar.ToString()))
-            {
-                path += System.IO.Path.DirectorySeparatorChar;
-            }
-            return path;
-        }
-
-        // 디렉터리의 모든 파일 리스트 가져오기
-        (List<string> files, List<string> folders) GetFileListFromDirectory(string directoryPath)
-        {
-            try
-            {
-                // 디렉터리 내 모든 파일의 이름을 상대 경로로 반환
-                List<string> folders = new List<string>();
-                List<string> files = new List<string>();
-                foreach (string folder in Directory.GetDirectories(directoryPath, "*", SearchOption.AllDirectories))
-                {
-                    if (folder.Contains("CAM")) continue;
-                    string relative = GetRelativePath(directoryPath, folder);
-                    folders.Add(relative);
-                }
-                foreach (string filePath in Directory.GetFiles(directoryPath, "*.*", SearchOption.AllDirectories)) //"*.dll
-                {
-                    if (filePath.Contains("CAM")) continue;
-                    // 파일 이름만 추가 (상대 경로)
-                    string relativePath = GetRelativePath(directoryPath, filePath);
-                    files.Add(relativePath);
-                }
-                return (files, folders);
-            }
-            catch (Exception ex)
-            {
-                System.Windows.MessageBox.Show($"디렉터리 접근 중 오류 발생: {ex.Message}");
-                return (new List<string>(), new List<string>());
-            }
         }
 
         // 원격 프로그램 실행 여부 확인 (wmic로 수정필요)
@@ -627,6 +596,160 @@ namespace AutoPatcher
             }
         }
 
+        // 백업 및 파일 교체
+        public void ReplaceFile(string remoteFolderPath, string fileName, string localFilePath)
+        {
+            string remoteFilePath = System.IO.Path.Combine(remoteFolderPath, fileName);
+            //string backupPath = System.IO.Path.Combine(backupRootPath, DateTime.Now.ToString("yyMMdd")) + "_back";
+            //Directory.CreateDirectory(backupPath);
+
+            //string backupFilePath = System.IO.Path.Combine(backupPath, fileName);
+            //File.Move(remoteFilePath, backupFilePath);
+            File.Delete(remoteFilePath);
+            File.Copy(localFilePath, remoteFilePath);
+            SetMessage($"[{remoteFolderPath}] 업데이트 완료: {fileName}");
+            Debug.WriteLine($"[{remoteFolderPath}] 업데이트 완료: {fileName}");
+        }
+
+        #endregion
+
+        #region Path,Directory,File
+
+        private bool GetPingResult(string desIP)
+        {
+            try
+            {
+                using (Ping ping = new Ping())
+                {
+                    PingReply reply = ping.Send(desIP, 5000); // 5000ms
+
+                    return reply.Status == IPStatus.Success;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+        }
+
+        public string GetRelativePath(string basePath, string targetPath)
+        {
+            FileAttributes fa = File.GetAttributes(targetPath);
+            Uri baseUri = null;
+            Uri targetUri = null;
+
+            if ((fa & FileAttributes.Directory) == FileAttributes.Directory)
+            {
+                baseUri = new Uri(AppendDirectorySeparator(basePath));
+                targetUri = new Uri(AppendDirectorySeparator(targetPath));
+
+                //return Uri.UnescapeDataString(relativeUri.ToString().Replace('/', System.IO.Path.DirectorySeparatorChar));
+            }
+            else
+            {
+                baseUri = new Uri(basePath);
+                targetUri = new Uri(targetPath);
+
+                //return Uri.UnescapeDataString(relativeUri.ToString());
+            }
+
+            Uri relativeUri = baseUri.MakeRelativeUri(targetUri);
+            string relativePath = Uri.UnescapeDataString(relativeUri.ToString().Replace('/', System.IO.Path.DirectorySeparatorChar));
+            //relativePath = targetPath.Substring((basePath.Length+2));
+
+            //if ((fa & FileAttributes.Directory) != FileAttributes.Directory)
+            //{
+            //    // 상대 경로에서 디렉터리 경로를 제외하고 파일명만 리턴
+            //    return relativePath.Substring(relativePath.LastIndexOf(System.IO.Path.DirectorySeparatorChar) + 1);
+            //}
+
+            return relativePath;
+
+        }
+
+        private string AppendDirectorySeparator(string path)
+        {
+            if (!path.EndsWith(System.IO.Path.DirectorySeparatorChar.ToString()))
+            {
+                path += System.IO.Path.DirectorySeparatorChar;
+            }
+            return path;
+        }
+
+        private void LoadFilesFromFolder(string folderPath)
+        {
+            try
+            {
+                // Clear previous files
+                FileList.Clear();
+                FilesToCheck.Clear();
+                FoldersToCheck.Clear();
+
+                // Get all files in the folder
+                var files = Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories);
+                var folders = Directory.GetDirectories(folderPath, "*", SearchOption.AllDirectories);
+
+                foreach (var folder in folders)
+                {
+                    FileList.Add(folder);
+                }
+                foreach (var file in files)
+                {
+                    if (file.Contains("CAM"))
+                    {
+                        FilesToCheck.Remove(file);
+                        continue;
+                    }
+                    FileList.Add(file);
+                }
+
+                var res = GetFileListFromDirectory(SourceDirectory);
+                FilesToCheck = res.files;
+                FoldersToCheck = res.folders;
+
+
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Error loading files: {ex.Message}");
+            }
+        }
+
+        // 디렉터리의 모든 파일 리스트 가져오기
+        (List<string> files, List<string> folders) GetFileListFromDirectory(string directoryPath)
+        {
+            try
+            {
+                // 디렉터리 내 모든 파일의 이름을 상대 경로로 반환
+                List<string> folders = new List<string>();
+                List<string> files = new List<string>();
+                foreach (string folder in Directory.GetDirectories(directoryPath, "*", SearchOption.AllDirectories))
+                {
+                    if (folder.Contains("CAM")) continue;
+                    string relative = GetRelativePath(directoryPath, folder);
+                    folders.Add(relative);
+                }
+                foreach (string filePath in Directory.GetFiles(directoryPath, "*.*", SearchOption.AllDirectories)) //"*.dll
+                {
+                    if (filePath.Contains("CAM")) continue;
+                    // 파일 이름만 추가 (상대 경로)
+                    string relativePath = GetRelativePath(directoryPath, filePath);
+                    files.Add(relativePath);
+                }
+                return (files, folders);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"디렉터리 접근 중 오류 발생: {ex.Message}");
+                return (new List<string>(), new List<string>());
+            }
+        }
+
+        #endregion
+
+        #region Backup
+
         // 파일 버전 불러오기
         string GetFileVersion(string filePath)
         {
@@ -659,14 +782,14 @@ namespace AutoPatcher
             {
                 if (!Directory.Exists(src))
                 {
-                    System.Windows.MessageBox.Show($"{src} doesn't exist");                    
+                    System.Windows.MessageBox.Show($"{src} doesn't exist");
                     return false;
                 }
                 //CompressDirectory(src, des);
                 BackupDirectory(src, des);
-                
+
                 //System.Windows.MessageBox.Show("Directory compressed successfully!");
-                
+
             }
             catch (Exception ex)
             {
@@ -686,11 +809,11 @@ namespace AutoPatcher
             string backupType = (src.Contains("bin")) ? "bin" : "config";
 
             // 오늘 날짜 폴더 생성
-            string backupPath = System.IO.Path.Combine(dest , DateTime.Now.ToString("yyMMdd"));
+            string backupPath = System.IO.Path.Combine(dest, DateTime.Now.ToString("yyMMdd"));
             if (!Directory.Exists(backupPath)) Directory.CreateDirectory(backupPath);
 
             // bin,config 생성
-            backupPath = System.IO.Path.Combine(backupPath , backupType);
+            backupPath = System.IO.Path.Combine(backupPath, backupType);
             if (!Directory.Exists(backupPath)) Directory.CreateDirectory(backupPath);
 
             // 폴더복사
@@ -702,7 +825,7 @@ namespace AutoPatcher
             if (File.Exists(src))
             {
                 // 파일 생성
-                File.Copy(src, dest, true);                
+                File.Copy(src, dest, true);
                 Debug.WriteLine("File copied successfully!");
             }
             else
@@ -711,12 +834,12 @@ namespace AutoPatcher
             }
         }
 
-        private void CopyFolder(string src,string dest)
-        {            
+        private void CopyFolder(string src, string dest)
+        {
             if (Directory.Exists(src))
             {
                 // 폴더 생성
-                if(!Directory.Exists(dest)) Directory.CreateDirectory(dest);
+                if (!Directory.Exists(dest)) Directory.CreateDirectory(dest);
                 var files = Directory.GetFiles(src);
 
                 // 파일 복사
@@ -735,7 +858,7 @@ namespace AutoPatcher
                     string destinationSubFolderPath = System.IO.Path.Combine(dest, folderName);
                     CopyFolder(directory, destinationSubFolderPath);
                 }
-                                
+
                 Debug.WriteLine("Folder copied successfully!");
             }
             else
@@ -760,7 +883,7 @@ namespace AutoPatcher
 
             // bin,config 구분
             string backupType = (sourceDir.Contains("bin")) ? "_bin" : "_config";
-            
+
             // 압축된 파일 이름은 소스 디렉터리의 이름 + .zip 
             string zipFilePath = System.IO.Path.Combine(targetDir, DateTime.Now.ToString("yyMMdd") + backupType + "_back.zip");
 
@@ -773,81 +896,7 @@ namespace AutoPatcher
             ZipFile.CreateFromDirectory(sourceDir, zipFilePath, CompressionLevel.Fastest, true);
         }
 
-        // 백업 및 파일 교체
-        public void ReplaceFile(string remoteFolderPath, string fileName, string localFilePath)
-        {
-            string remoteFilePath = System.IO.Path.Combine(remoteFolderPath, fileName);
-            //string backupPath = System.IO.Path.Combine(backupRootPath, DateTime.Now.ToString("yyMMdd")) + "_back";
-            //Directory.CreateDirectory(backupPath);
-
-            //string backupFilePath = System.IO.Path.Combine(backupPath, fileName);
-            //File.Move(remoteFilePath, backupFilePath);
-            File.Delete(remoteFilePath);
-            File.Copy(localFilePath, remoteFilePath);
-            SetMessage($"[{remoteFolderPath}] 업데이트 완료: {fileName}");
-            Debug.WriteLine($"[{remoteFolderPath}] 업데이트 완료: {fileName}");
-        }
-
-        private void LoadExcelData(string filePath)
-        {
-            DataGridItems.Clear();
-            var excelApp = new Excel.Application();
-            Excel.Workbook workbook = null;
-            Excel.Worksheet worksheet = null;
-
-            try
-            {
-                workbook = excelApp.Workbooks.Open(filePath);
-                worksheet = workbook.Sheets[SelectedMode + 1] as Excel.Worksheet;
-
-                Excel.Range usedRange = worksheet.UsedRange;
-                int rowCount = usedRange.Rows.Count;
-                int colCount = usedRange.Columns.Count;
-                string temp_name = "";
-                for (int row = 2; row <= rowCount; row++) // 1행은 헤더로 스킵
-                {
-                    string group_name = Convert.ToString(usedRange.Cells[row, 2]?.Value);
-
-                    if (string.IsNullOrEmpty(group_name)) { group_name = temp_name; }
-                    else { temp_name = group_name; }
-
-                    DataGridItems.Add(new RowData
-                    {
-                        Group = group_name,
-                        //Server         = Convert.ToString(usedRange.Cells[row, 1]?.Value),
-                        //LocalIP        = Convert.ToString(usedRange.Cells[row, 3]?.Value),
-                        InspectionUnit = Convert.ToString(usedRange.Cells[row, 3]?.Value),
-                        PC1 = Convert.ToString(usedRange.Cells[row, 4]?.Value),
-                        PC2 = Convert.ToString(usedRange.Cells[row, 5]?.Value),
-                        PC3 = Convert.ToString(usedRange.Cells[row, 6]?.Value),
-                        PC4 = Convert.ToString(usedRange.Cells[row, 7]?.Value),
-                        PC5 = Convert.ToString(usedRange.Cells[row, 8]?.Value),
-                        PC6 = Convert.ToString(usedRange.Cells[row, 9]?.Value)
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Windows.MessageBox.Show($"Error loading Excel data: {ex.Message}");
-            }
-            finally
-            {
-                workbook?.Close(false);
-                excelApp?.Quit();
-            }
-        }
-
-        private void SetupDataGridGrouping()
-        {
-            //CollectionView view = (CollectionView)CollectionViewSource.GetDefaultView(DataGridItems);
-            //PropertyGroupDescription groupDescription = new PropertyGroupDescription("Group");
-            //view.GroupDescriptions.Add(groupDescription);
-
-            // CollectionView를 가져와서 그룹화를 설정
-            ICollectionView view = CollectionViewSource.GetDefaultView(DataGridItems);
-            view.GroupDescriptions.Clear();
-            view.GroupDescriptions.Add(new PropertyGroupDescription("Group"));
-        }
+        #endregion
 
         private void SelectFolderButton_Click(object sender, RoutedEventArgs e)
         {
@@ -888,47 +937,8 @@ namespace AutoPatcher
                     ExcelPath = dlg.FileName;
                     LoadExcelData(dlg.FileName);
                     lblCurExcel.Content = dlg.FileName;
-                    SetMessage("Loaded patch list");
+                    SetMessage("Loaded patch list");                    
                 }
-            }
-        }
-
-        private void LoadFilesFromFolder(string folderPath)
-        {
-            try
-            {
-                // Clear previous files
-                FileList.Clear();
-                FilesToCheck.Clear();
-                FoldersToCheck.Clear();
-
-                // Get all files in the folder
-                var files = Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories);
-                var folders = Directory.GetDirectories(folderPath, "*", SearchOption.AllDirectories);
-
-                foreach (var folder in folders)
-                {
-                    FileList.Add(folder);
-                }
-                foreach (var file in files)
-                {
-                    if (file.Contains("CAM"))
-                    {
-                        FilesToCheck.Remove(file);
-                        continue;
-                    }
-                    FileList.Add(file);
-                }
-
-                var res = GetFileListFromDirectory(SourceDirectory);
-                FilesToCheck = res.files;
-                FoldersToCheck = res.folders;
-
-
-            }
-            catch (Exception ex)
-            {
-                System.Windows.MessageBox.Show($"Error loading files: {ex.Message}");
             }
         }
 
@@ -1274,8 +1284,6 @@ namespace AutoPatcher
         }
 
         public string Group { get; set; }
-        public string Server { get; set; }
-        public string LocalIP { get; set; }
         public string InspectionUnit { get; set; }
         public string PC1 { get; set; }
         public string PC2 { get; set; }
