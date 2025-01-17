@@ -136,9 +136,7 @@ namespace AutoPatcher
             FileList                = new ObservableCollection<string>();
             FilesToCheck            = new List<string>();
             IPAddresses             = new List<string>();
-            FoldersToCheck          = new List<string>();
-            //LoadExcelData(@"D:\WPF\test_lists.xlsx"); // 엑셀 파일 경로
-            //SetupDataGridGrouping();
+            FoldersToCheck          = new List<string>();            
             DataGrid.ItemsSource    = DataGridItems;
             FileListBox.ItemsSource = FileList;          
         }
@@ -184,6 +182,112 @@ namespace AutoPatcher
         {
             this.lblStatus.Content = msg;
             this.lblStatus.Foreground = new SolidColorBrush(Colors.Red);
+        }
+
+        /// <summary>
+        /// Start Patch in ip
+        /// </summary>
+        /// <param name="ip">ip</param>
+        /// <param name="BackupPathList">BackupPathList (bin,config)</param>
+        /// <param name="remoteBackupPath">remoteBackupPath (\\backup)</param>
+        /// <param name="remoteFolderPath">remoteFolderPath (Excute path (bin))</param>
+        /// <returns></returns>
+        private bool Patch(string ip ,string[] BackupPathList,string remoteBackupPath,string remoteFolderPath)
+        {
+            try
+            {
+                #region ping
+                if (!GetPingResult(ip))
+                {
+                    SetWarnning($"[{ip}] _ No response ");
+                    System.Windows.MessageBox.Show($"No response {ip}");
+                    ChangeCellColor(ip, Brushes.IndianRed);
+                    return false;
+                }
+                #endregion
+
+                #region check process running
+                // 프로그램 실행 중 확인
+                if (IsProgramRunning(ip, ProcessNameToCheck))
+                {
+                    SetMessage($"[{ip}] {ProcessNameToCheck} is running : Waiting for exit ...");
+                    Debug.WriteLine($"[{ip}] 프로그램 실행 중: {ProcessNameToCheck}. 종료를 기다립니다...");
+                    WaitForProcessToExit(ip, ProcessNameToCheck, timeoutSeconds: 120);
+                }
+                else
+                {
+                    SetMessage($"[{ip}] : [{ProcessNameToCheck}] is not running. Try to patch..");
+                    Debug.WriteLine($"[{ip}] 프로그램이 실행 중이 아닙니다. 패치 진행.");
+                }
+                #endregion
+
+                #region backup
+                foreach (string strBackUpPath in BackupPathList)
+                {
+                    SetMessage($"[{ip}] _ [{strBackUpPath}] back up..");
+                    if (!CheckBackupFolder(strBackUpPath, remoteBackupPath))
+                    {
+                        SetWarnning($"{strBackUpPath} dosen't exist");
+                        return false;
+                    }
+
+                    else SetMessage($"[{ip}] _ [{strBackUpPath}] Backup successfully!");
+                }
+                #endregion
+
+                #region Update
+                // subfolder 없을시 생성
+                foreach (string folder in FoldersToCheck)
+                {
+                    if (!Directory.Exists(remoteFolderPath + "\\" + folder))
+                    {
+                        Directory.CreateDirectory(remoteFolderPath + "\\" + folder);
+                    }
+                }
+                // 파일 업데이트 작업
+                foreach (string fileName in FilesToCheck)
+                {
+                    SetMessage($"[{ip}] _ Patching {fileName} ..");
+                    string localFilePath = System.IO.Path.Combine(SourceDirectory, fileName);
+                    string remoteFilePath = System.IO.Path.Combine(remoteFolderPath, fileName);
+
+                    if (!File.Exists(remoteFilePath))
+                    {
+                        Debug.WriteLine($"[{ip}] 원격 파일 없음: {fileName}.");
+                    }
+
+                    if (IsFileUpdateNeeded(localFilePath, remoteFilePath))
+                    {
+
+                        Debug.WriteLine($"[{ip}] 업데이트 필요: {fileName}. 백업 및 교체를 진행합니다.");
+                        SetMessage($"[{ip}] _ Update: {fileName}. Backup and replace in progress.");
+                        ReplaceFile(remoteFolderPath, fileName, localFilePath);
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"[{ip}] 최신 상태 유지: {fileName}");
+                        SetMessage($"[{ip}] _ Skip : {fileName}");
+                    }
+                }
+                #endregion
+            }
+            catch (Exception ex)
+            {
+                SetWarnning(ex.Message);
+                return false;
+            }
+            
+            return true;
+        }
+
+        public void SetComplete(string ip)
+        {
+            ChangeCellColor(ip, Brushes.OrangeRed);
+        }
+
+        public void SetFail(string ip)
+        {
+            ChangeCellColor(ip, Brushes.LimeGreen);
         }
 
         public bool StartAutoPatch()
@@ -235,14 +339,21 @@ namespace AutoPatcher
                         if (Directory.Exists(path))
                         {
                             remotePath = path;
+                            SetMessage($"[{ip}] _ set path : [{remotePath}] ");
                             break;
                         }
+                    }
+                    if(string.IsNullOrEmpty(remotePath))
+                    {
+                        SetWarnning($"[{ip}] _ Does not exist path");
+                        System.Windows.MessageBox.Show($"[{ip}] _ Does not exist path");
+                        continue;
                     }
                 }
                 catch
                 {
-                    System.Windows.MessageBox.Show($"[{ip}]_Does not exist path");
-                    SetWarnning($"[{ip}]_Does not exist path");
+                    System.Windows.MessageBox.Show($"[{ip}] _ Does not exist path");
+                    SetWarnning($"[{ip}] _ Does not exist path");
                     continue;
                 }
                 #endregion
@@ -257,80 +368,19 @@ namespace AutoPatcher
                 SetMessage($"Access to [{ip}]...");
                 Debug.WriteLine($"[{ip}] 접근 중...");
 
+                #region Start Patch
                 try
                 {
-                    #region ping
-                    if (!GetPingResult(ip))
+                    if(Patch(ip,BackupPathList,remoteBackupPath,remoteFolderPath))
                     {
-                        SetWarnning($"[{ip}] _ No response ");
-                        System.Windows.MessageBox.Show($"No response {ip}");
-                        ChangeCellColor(ip, Brushes.IndianRed);
-                        continue;
-                    }
-                    #endregion
-
-                    #region check process running
-                    // 프로그램 실행 중 확인
-                    if (IsProgramRunning(ip, ProcessNameToCheck))
-                    {
-                        SetMessage($"[{ip}] {ProcessNameToCheck} is running : Waiting for exit ...");
-                        Debug.WriteLine($"[{ip}] 프로그램 실행 중: {ProcessNameToCheck}. 종료를 기다립니다...");
-                        WaitForProcessToExit(ip, ProcessNameToCheck, timeoutSeconds: 120);
+                        SetMessage($"[{ip}] _ patch complete");
+                        SetComplete(ip);
                     }
                     else
                     {
-                        SetMessage($"[{ip}] : [{ProcessNameToCheck}] is not running. Try to patch..");
-                        Debug.WriteLine($"[{ip}] 프로그램이 실행 중이 아닙니다. 패치 진행.");
-                    }
-                    #endregion
-
-                    #region backup
-                    foreach (string strBackUpPath in BackupPathList)
-                    {
-                        SetMessage($"[{ip}] _ [{strBackUpPath}] back up..");
-                        if (!CheckBackupFolder(strBackUpPath, remoteBackupPath))
-                            SetWarnning($"{strBackUpPath} dosen't exist");
-                        else SetMessage($"[{ip}] _ [{strBackUpPath}] Backup successfully!");
-                    }
-                    #endregion
-
-                    #region Update
-                    // subfolder 없을시 생성
-                    foreach (string folder in FoldersToCheck)
-                    {
-                        if (!Directory.Exists(remoteFolderPath + "\\" + folder))
-                        {
-                            Directory.CreateDirectory(remoteFolderPath + "\\" + folder);
-                        }
-                    }
-                    // 파일 업데이트 작업
-                    foreach (string fileName in FilesToCheck)
-                    {
-                        SetMessage($"[{ip}] _ Patching {fileName} ..");
-                        string localFilePath = System.IO.Path.Combine(SourceDirectory, fileName);
-                        string remoteFilePath = System.IO.Path.Combine(remoteFolderPath, fileName);
-
-                        if (!File.Exists(remoteFilePath))
-                        {
-                            Debug.WriteLine($"[{ip}] 원격 파일 없음: {fileName}.");
-                        }
-
-                        if (IsFileUpdateNeeded(localFilePath, remoteFilePath))
-                        {
-                            
-                            Debug.WriteLine($"[{ip}] 업데이트 필요: {fileName}. 백업 및 교체를 진행합니다.");
-                            SetMessage($"[{ip}] _ Update: {fileName}. Backup and replace in progress.");
-                            ReplaceFile(remoteFolderPath, fileName, localFilePath);
-                        }
-                        else
-                        {
-                            Debug.WriteLine($"[{ip}] 최신 상태 유지: {fileName}");
-                            SetMessage($"[{ip}] _ Skip : {fileName}");
-                        }
-                    }
-                    SetMessage($"[{ip}] _ patch completed");
-                    ChangeCellColor(ip, Brushes.LimeGreen);
-                    #endregion
+                        SetWarnning($"[{ip}] _ patch failed");
+                        SetFail(ip);
+                    }                    
                 }
                 catch (Exception ex)
                 {
@@ -339,14 +389,15 @@ namespace AutoPatcher
                     ChangeCellColor(ip, Brushes.IndianRed);
                     continue;
                 }
+                #endregion
             }
-            
+
             Debug.WriteLine("모든 작업이 완료되었습니다.");
             Console.ReadLine();
             return true;
         }
 
-        public void ChangeCellColor(string val,SolidColorBrush color)
+        private void ChangeCellColor(string val,SolidColorBrush color)
         {
             // DataGrid의 각 행과 셀을 순회합니다.
             foreach (var row in this.DataGrid.Items)
