@@ -29,6 +29,7 @@ using System.Windows.Forms;
 using System.Security.Cryptography;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.Button;
 using System.Collections;
+using Microsoft.WindowsAPICodePack.Dialogs;
 
 namespace AutoPatcher
 {
@@ -907,18 +908,33 @@ namespace AutoPatcher
                 System.Windows.MessageBox.Show("Set the process name");
                 return;
             }
-            using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
-            {
-                System.Windows.Forms.DialogResult result = dialog.ShowDialog();
 
-                if (result == System.Windows.Forms.DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.SelectedPath))
-                {
-                    SourceDirectory = dialog.SelectedPath + "\\";
-                    LoadFilesFromFolder(dialog.SelectedPath);
-                    lblCurDir.Content = dialog.SelectedPath;
-                }
+            CommonOpenFileDialog cofd = new CommonOpenFileDialog();
+
+            cofd.IsFolderPicker = true;
+
+            if(cofd.ShowDialog()==CommonFileDialogResult.Ok)
+            {
+                SourceDirectory = cofd.FileName + "\\";
+                LoadFilesFromFolder(cofd.FileName);
+                lblCurDir.Content = cofd.FileName;
                 SetMessage("Loaded patch lsit");
             }
+            
+
+            //using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
+            //{
+            //    System.Windows.Forms.DialogResult result = dialog.ShowDialog();
+
+            //    if (result == System.Windows.Forms.DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.SelectedPath))
+            //    {
+            //        SourceDirectory = dialog.SelectedPath + "\\";
+            //        LoadFilesFromFolder(dialog.SelectedPath);
+            //        lblCurDir.Content = dialog.SelectedPath;
+            //    }
+                
+            //}
+            
         }
 
         private void btnLoadExcel_Click(object sender, RoutedEventArgs e)
