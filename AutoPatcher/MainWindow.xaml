@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:AutoPatcher"
         mc:Ignorable="d"
-        Title="HDS Patch Automation [ Version 1.0.0 ]" Height="900" Width="1250">
+        Title="HDS Auto Patcher [ Version 1.0.0 ]" Height="950" Width="1280">
     <Window.Resources>
         <!-- Grouping Data by Group -->
         <CollectionViewSource x:Key="GroupedData" Source="{Binding DataGridItems}">
@@ -17,42 +17,34 @@
     <Grid>
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="0.3*"/>
+                <RowDefinition Height="30"/>
                 <RowDefinition Height="3*"/>
-                <RowDefinition Height="0.5*"/>
+                <RowDefinition Height="40"/>
                 <RowDefinition Height="3*"/>
-                <RowDefinition Height="1*"/>                
+                <RowDefinition Height="35"/>                
             </Grid.RowDefinitions>
             
-            <Grid Grid.Row="0" Grid.Column="0">
+            <Grid Grid.Row="0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1*"/>
-                    <ColumnDefinition Width="3*"/>
+                    <ColumnDefinition Width="*"/>                    
                 </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="10,0,10,0" Height="Auto" >
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="10,0,10,0" HorizontalAlignment="Left" Height="Auto" >
                     <RadioButton x:Name="rdLF"  FontSize="15" VerticalContentAlignment="Center" Content="LF"  Margin="0,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[0],Mode=TwoWay}"></RadioButton>
                     <RadioButton x:Name="rdSII" FontSize="15" VerticalContentAlignment="Center" Content="SII" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[1],Mode=TwoWay}"></RadioButton>
                     <RadioButton x:Name="rdBGA" FontSize="15" VerticalContentAlignment="Center" Content="BGA" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[2],Mode=TwoWay}"></RadioButton>
-                    <RadioButton x:Name="rdCOB" FontSize="15" VerticalContentAlignment="Center" Content="COB" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[3],Mode=TwoWay}"></RadioButton>
-                    
-                </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Label FontSize="15" Content="Status : " HorizontalAlignment="Center" HorizontalContentAlignment="Center" Margin="5,0,0,0"></Label>
-                    <Label FontSize="15" Content="-" Margin="1,0,0,0" Name="lblStatus"></Label>
-                </StackPanel>
+                    <RadioButton x:Name="rdCOB" FontSize="15" VerticalContentAlignment="Center" Content="COB" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[3],Mode=TwoWay}"></RadioButton>                    
+                </StackPanel>                
             </Grid>
-            <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3">
-                <DataGrid x:Name="DataGrid"
-                          AutoGenerateColumns="False"                          
-                          IsReadOnly="False"
-                          CanUserAddRows="False"
-                          Margin="10,5,10,0"
-                          HorizontalScrollBarVisibility="Auto"
-                          VerticalScrollBarVisibility="Visible"
-                          HeadersVisibility="Column"
-                          MaxHeight="400"
-                              
-                          MinHeight="300"                    
+            <Grid Grid.Row="1">
+                <DataGrid x:Name                        ="DataGrid"
+                          AutoGenerateColumns           ="False"                                                    
+                          IsReadOnly                    ="False"
+                          CanUserAddRows                ="False"
+                          Margin                        ="5,5,5,5"
+                          HorizontalScrollBarVisibility ="Auto"
+                          VerticalScrollBarVisibility   ="Auto"
+                          HeadersVisibility             ="Column"
+                                          
                           ItemsSource="{Binding Path=Groups, Source={StaticResource GroupedData}}" >
                     <DataGrid.Resources>
                         <Style TargetType="DataGrid">
@@ -109,7 +101,7 @@
                                 </StackPanel>
                             </DataGridTemplateColumn.Header>
                             <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
+                                <DataTemplate>                                    
                                     <StackPanel x:Name="StackPanel" Orientation="Horizontal">
                                         <CheckBox IsChecked="{Binding MainSelected}" Name="chkMain" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked" ></CheckBox>
                                         <TextBlock Text="{Binding PC1}" Width="120"></TextBlock>
@@ -209,55 +201,115 @@
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
+
+                        <!--<DataGridTemplateColumn>
+                            <DataGridTemplateColumn.Header>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="1*"/>
+                                        <ColumnDefinition Width="8*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox Grid.Column="0" />
+                                    <TextBlock Grid.Column="1" Text="TestText"/>
+                                </Grid>
+                            </DataGridTemplateColumn.Header>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Grid>                                        
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="2*"/>
+                                            <ColumnDefinition Width="8*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" Content="TestCheck"/>
+                                        <TextBlock Grid.Column="1" Text="TestText"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>-->
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
             <Grid Grid.Row="2">
-                <StackPanel Orientation="Horizontal" Margin="5,5,5,5" Height="Auto">
+                <Grid.ColumnDefinitions >
+                    <ColumnDefinition Width="2.5*"/>
+                    <ColumnDefinition Width="2.5*"/>
+                    <ColumnDefinition Width="5*"/>
+                </Grid.ColumnDefinitions>                
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="5,5,5,5" Height="Auto">
                     <RadioButton Name="rdMain"   Checked="Radiobutton_Checked" GroupName="PCType"  VerticalContentAlignment="Center" FontSize="15" Content="Main" Margin="5,0,0,0"></RadioButton>
-                    <RadioButton Name="rdVision" Checked="Radiobutton_Checked" GroupName="PCType"  VerticalContentAlignment="Center" FontSize="15" Content="Vision" Margin="5,0,0,0"></RadioButton>
-                    <Label FontSize="15" Content="Process :" Margin="10,0,0,0" VerticalAlignment="Center"></Label>
-                    <Label x:Name="lblProcName" FontSize="15" Content="-" VerticalAlignment="Center" Margin="0,0,0,0"></Label>
+                    <RadioButton Name="rdVision" Checked="Radiobutton_Checked" GroupName="PCType"  VerticalContentAlignment="Center" FontSize="15" Content="Vision" Margin="5,0,0,0"></RadioButton>                    
                 </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left" Margin="5,5,5,5" Height="Auto">
+                    <Label FontSize="15" Content="Process :" Margin="10,0,0,0" VerticalAlignment="Center"></Label>
+                    <Label x:Name="lblProcName" FontSize="15" Content="-" VerticalAlignment="Center" Margin="20,0,0,0"></Label>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Left" Margin="5,5,5,5" Height="Auto">
+                    <Label FontSize="15" Content="Status : " HorizontalAlignment="Center" HorizontalContentAlignment="Center" Margin="5,0,0,0"></Label>
+                    <Label FontSize="15" Content="-" Margin="1,0,0,0" Name="lblStatus"></Label>
+                </StackPanel>
+                
             </Grid>
             <Grid Grid.Row="3">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
                 <!-- ListBox to Display Files -->
-                <ListBox x:Name="FileListBox" Margin="5,5,5,5" Height="Auto"   MinHeight="300" />
+                <ListBox Grid.Column="0" x:Name="FileListBox" Margin="5,5,5,5" Height="Auto" />
+                <Border Background="White" Grid.Column="1" BorderBrush="Black" BorderThickness="0.4" Margin="5,5,5,5">
+                    <ScrollViewer x:Name="LogScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                        <TextBlock   x:Name="LogBox" Margin="5,5,5,5"  Height="Auto" />
+                    </ScrollViewer>
+                </Border>
+                
+                <!--<ListBox Grid.Column="1" x:Name="LogBox" Margin="5,5,5,5" Height="Auto"/>-->
             </Grid>
-            <Grid Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" >
-                <StackPanel Orientation="Vertical" Margin="5,5,5,5" Height="Auto">
+            <Grid Grid.Row="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="2*"/>
+                </Grid.ColumnDefinitions>                
                     <!--select excel-->
-                    <StackPanel Orientation="Horizontal" Height="Auto" Margin="5,0,0,0">
-                        <Button x:Name="btnLoadExcel"
-                            Content="Load Excel" Width="80" Height="30"
-                            VerticalAlignment="Top" 
-                            HorizontalAlignment="Left"
-                            Click = "btnLoadExcel_Click"
-                            FontSize="13"/>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Height="Auto" Margin="5,0,0,5">
+                        <Button 
+                            x:Name              ="btnLoadExcel"
+                            Content             ="Load Excel"
+                            Width               ="80"
+                            Height              ="30"
+                            VerticalAlignment   ="Top" 
+                            HorizontalAlignment ="Left"
+                            Click               = "btnLoadExcel_Click"
+                            FontSize            ="13"/>
                         <Label x:Name="lblCurExcel" Content="D:\" Margin="12,0,0,0"/>
                     </StackPanel>
 
                     <!--set patch folder-->
-                    <StackPanel Orientation="Horizontal" Height="Auto" Margin="5,5,0,0" >
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Height="Auto" Margin="5,0,0,5" >
                         <!-- Button to Select Folder -->
-                        <Button x:Name="SelectFolderButton" 
-                        Content="Patch Folder"                 
-                        Width="80" 
-                        Height="30"                  
-                        VerticalAlignment="Top" 
-                        HorizontalAlignment="Left"
-                        Click="SelectFolderButton_Click" 
-                        FontSize="13"/>
+                        <Button x:Name      ="SelectFolderButton" 
+                        Content             ="Patch Folder"                 
+                        Width               ="80" 
+                        Height              ="30"                  
+                        VerticalAlignment   ="Top" 
+                        HorizontalAlignment ="Left"
+                        Click               ="btnSetPatchDirectory" 
+                        FontSize            ="13"/>
                         <Label x:Name="lblCurDir" Content="D:\" Margin="13,0,0,0"/>
                     </StackPanel>
 
                     <!--run patch-->
-                    <StackPanel Orientation="Horizontal" Height="Auto" Margin="5,5,0,0">
-                        <Button x:Name="btnRunPatch" Content="Apply" Width="80" Height="30"  
-                        VerticalAlignment="Top" 
-                        HorizontalAlignment="Left" Click="btnRunPatch_Click"/>
-                    </StackPanel>
-                </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Height="Auto" Margin="5,0,0,5">
+                        <Button 
+                            x:Name              ="btnRunPatch" 
+                            Content             ="Patch"
+                            Width               ="80" 
+                            Height              ="30"  
+                            VerticalAlignment   ="Top" 
+                            HorizontalAlignment ="Left" 
+                            Click               ="btnRunPatch_Click"/>
+                    
+                </StackPanel>                
             </Grid>
         </Grid>
     </Grid>

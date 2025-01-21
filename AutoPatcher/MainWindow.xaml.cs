@@ -30,6 +30,7 @@ using System.Security.Cryptography;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.Button;
 using System.Collections;
 using Microsoft.WindowsAPICodePack.Dialogs;
+using static System.Net.WebRequestMethods;
 
 namespace AutoPatcher
 {
@@ -41,7 +42,7 @@ namespace AutoPatcher
         #region member
 
         #region radio button (LF,SII,BGA,COB)
-        private bool[] _ModeArray = new bool[4] { true, false, false, false };
+        private bool[] _ModeArray = new bool[4] { false, false, false, false };
         public bool[] ModeArray { get { return _ModeArray; } }
         public int SelectedMode { get { return Array.IndexOf(_ModeArray, true); } }
         #endregion
@@ -60,6 +61,16 @@ namespace AutoPatcher
 
         public ObservableCollection<RowData> DataGridItems { get; private set; }
         public ObservableCollection<string> FileList { get; set; }
+
+        
+
+        enum LogLevel
+        {
+            DEBUG = 0,
+            INFO = 1,
+            IMPORTANT = 2,
+            ERROR = 3,
+        }
 
         private string _ExcelPath;
         public string ExcelPath
@@ -131,12 +142,12 @@ namespace AutoPatcher
         {
             InitializeComponent();
             DataGridItems           = new ObservableCollection<RowData>();
-            FileList                = new ObservableCollection<string>();
+            FileList                = new ObservableCollection<string>();            
             FilesToCheck            = new List<string>();
             IPAddresses             = new List<string>();
             FoldersToCheck          = new List<string>();            
             DataGrid.ItemsSource    = DataGridItems;
-            FileListBox.ItemsSource = FileList;                      
+            FileListBox.ItemsSource = FileList;            
         }
 
         void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -171,6 +182,29 @@ namespace AutoPatcher
         }
 
         #region Update result
+        
+        private void Log(string msg, LogLevel level = LogLevel.INFO)
+        {
+            string text = $"[{DateTime.Now.ToString("g")}] [{level}] : {msg}\n";
+
+            Run run = new Run(text);
+            
+            //LogBox.AppendText(text);            
+            if (level == LogLevel.INFO || level == LogLevel.DEBUG)
+            {
+                run.Foreground = Brushes.Black;                
+                SetMessage(msg);
+            }
+            else if (level == LogLevel.ERROR || level == LogLevel.IMPORTANT)
+            {
+                if (level == LogLevel.IMPORTANT) run.Foreground = Brushes.Orange;
+                else run.Foreground = Brushes.Red;
+                SetWarnning(msg);
+            }
+            LogBox.Inlines.Add(run);
+            LogScroll.ScrollToEnd();
+            return;
+        }
 
         public void SetMessage(string msg)
         {
@@ -329,29 +363,32 @@ namespace AutoPatcher
                 #region check process running
                 // 프로그램 실행 중 확인
                 if (IsProgramRunning(ip, ProcessNameToCheck))
-                {
-                    SetMessage($"[{ip}] {ProcessNameToCheck} is running : Waiting for exit ...");
+                {                    
+                    Log($"[{ip}] {ProcessNameToCheck} is running : Waiting for exit ...");
                     Debug.WriteLine($"[{ip}] 프로그램 실행 중: {ProcessNameToCheck}. 종료를 기다립니다...");
                     WaitForProcessToExit(ip, ProcessNameToCheck, timeoutSeconds: 120);
                 }
                 else
-                {
-                    SetMessage($"[{ip}] : [{ProcessNameToCheck}] is not running. Try to patch..");
+                {                    
+                    Log($"[{ip}] : [{ProcessNameToCheck}] is not running. Try to patch..");
                     Debug.WriteLine($"[{ip}] 프로그램이 실행 중이 아닙니다. 패치 진행.");
                 }
                 #endregion
 
                 #region backup
                 foreach (string strBackUpPath in BackupPathList)
-                {
-                    SetMessage($"[{ip}] _ [{strBackUpPath}] back up..");
+                {                                 
+                    Log($"[{ip}] _ [{strBackUpPath}] back up..");
                     if (!CheckBackupFolder(strBackUpPath, remoteBackupPath))
-                    {
-                        SetWarnning($"{strBackUpPath} dosen't exist");
+                    {                        
+                        Log($"{strBackUpPath} dosen't exist", LogLevel.ERROR);
                         return false;
                     }
 
-                    else SetMessage($"[{ip}] _ [{strBackUpPath}] Backup successfully!");
+                    else
+                    {                        
+                        Log($"[{ip}] _ [{strBackUpPath}] Backup successfully!");
+                    }
                 }
                 #endregion
 
@@ -366,34 +403,33 @@ namespace AutoPatcher
                 }
                 // 파일 업데이트 작업
                 foreach (string fileName in FilesToCheck)
-                {
-                    SetMessage($"[{ip}] _ Patching {fileName} ..");
+                {                    
+                    Log($"[{ip}] _ Patching {fileName} ..");
                     string localFilePath = System.IO.Path.Combine(SourceDirectory, fileName);
                     string remoteFilePath = System.IO.Path.Combine(remoteFolderPath, fileName);
 
-                    if (!File.Exists(remoteFilePath))
+                    if (!System.IO.File.Exists(remoteFilePath))
                     {
                         Debug.WriteLine($"[{ip}] 원격 파일 없음: {fileName}.");
                     }
 
                     if (IsFileUpdateNeeded(localFilePath, remoteFilePath))
-                    {
-
+                    {                        
                         Debug.WriteLine($"[{ip}] 업데이트 필요: {fileName}. 백업 및 교체를 진행합니다.");
-                        SetMessage($"[{ip}] _ Update: {fileName}. Backup and replace in progress.");
-                        ReplaceFile(remoteFolderPath, fileName, localFilePath);
+                        Log($"[{ip}] _ Update: {fileName}. Backup and replace in progress.");
+                        ReplaceFile(ip,remoteFolderPath, fileName, localFilePath);
                     }
                     else
                     {
                         Debug.WriteLine($"[{ip}] 최신 상태 유지: {fileName}");
-                        SetMessage($"[{ip}] _ Skip : {fileName}");
+                        Log($"[{ip}] _ Skip : {fileName}");
                     }
                 }
                 #endregion
             }
             catch (Exception ex)
-            {
-                SetWarnning(ex.Message);
+            {                
+                Log(ex.Message,LogLevel.ERROR);
                 return false;
             }
             
@@ -404,23 +440,13 @@ namespace AutoPatcher
         {
             if (SourceDirectory == null)
             {
-                System.Windows.MessageBox.Show("패치파일이 들어있는 폴더가 지정되지 않았습니다");
-                return false;
-            }
-
-            if (IPAddresses.Count == 0)
-            {
-                System.Windows.MessageBox.Show("패치할 설비가 지정되지 않았습니다");
+                System.Windows.MessageBox.Show("No selected source directory");
+                Log("No selected source directory", LogLevel.IMPORTANT);
                 return false;
             }
 
             if (FilesToCheck.Count == 0)
-            {
-                if (string.IsNullOrEmpty(SourceDirectory))
-                {
-                    System.Windows.MessageBox.Show("패치할 파일 및 폴더가 지정되지 않았습니다");
-                    return false;
-                }
+            {                
                 var res = GetFileListFromDirectory(SourceDirectory);
                 FilesToCheck = res.files;
                 FoldersToCheck = res.folders;
@@ -448,22 +474,22 @@ namespace AutoPatcher
                     {
                         if (Directory.Exists(path))
                         {
-                            remotePath = path;
-                            SetMessage($"[{ip}] _ set path : [{remotePath}] ");
+                            remotePath = path;                            
+                            Log($"[{ip}] _ set path : [{remotePath}] ");
                             break;
                         }
                     }
                     if(string.IsNullOrEmpty(remotePath))
-                    {
-                        SetWarnning($"[{ip}] _ Does not exist path");
+                    {                        
+                        Log($"[{ip}] _ Does not exist path",LogLevel.IMPORTANT);
                         System.Windows.MessageBox.Show($"[{ip}] _ Does not exist path");
                         continue;
                     }
                 }
                 catch
                 {
-                    System.Windows.MessageBox.Show($"[{ip}] _ Does not exist path");
-                    SetWarnning($"[{ip}] _ Does not exist path");
+                    Log($"[{ip}] _ Does not exist path", LogLevel.ERROR);
+                    System.Windows.MessageBox.Show($"[{ip}] _ Does not exist path");                                        
                     continue;
                 }
                 #endregion
@@ -475,26 +501,26 @@ namespace AutoPatcher
                 string[] BackupPathList = { remoteFolderPath, remoteConfigPath };
                 #endregion
 
-                #region Start Patch
-                SetMessage($"Access to [{ip}]...");
+                #region Start Patch                
+                Log($"Access to [{ip}]...");
                 Debug.WriteLine($"[{ip}] 접근 중...");
                 
                 try
                 {
                     if(Patch(ip,BackupPathList,remoteBackupPath,remoteFolderPath))
-                    {
-                        SetMessage($"[{ip}] _ patch complete");
+                    {                        
+                        Log($"[{ip}] _ patch complete");
                         SetComplete(ip);
                     }
                     else
-                    {
-                        SetWarnning($"[{ip}] _ patch failed");
+                    {                        
+                        Log($"[{ip}] _ patch failed",LogLevel.IMPORTANT);
                         SetFail(ip);
                     }                    
                 }
                 catch (Exception ex)
-                {
-                    SetMessage($"[{ip}] _ Error occured : {ex.Message}");
+                {                    
+                    Log($"[{ip}] _ Error occured : {ex.Message}",LogLevel.ERROR);
                     Debug.WriteLine($"[{ip}] 오류 발생: {ex.Message}");
                     ChangeCellColor(ip, Brushes.IndianRed);
                     continue;
@@ -530,8 +556,8 @@ namespace AutoPatcher
                 else return false;
             }
             catch
-            {
-                SetWarnning("Check process error");
+            {                
+                Log("Check process error",LogLevel.ERROR);
                 return false;
             }
 
@@ -563,12 +589,12 @@ namespace AutoPatcher
             while (IsProgramRunning(ip, processName))
             {
                 if (waitedSeconds >= timeoutSeconds)
-                {
-                    SetWarnning($"[{ip}] 타임아웃: {processName} 종료를 기다리는 동안 시간이 초과되었습니다.");
+                {                    
+                    Log($"[{ip}] TimeOut: {processName} timeout occurred while waiting for termination.",LogLevel.ERROR);
                     Debug.WriteLine($"[{ip}] 타임아웃: {processName} 종료를 기다리는 동안 시간이 초과되었습니다.");
                     break;
-                }
-                SetMessage($"[{ip}] {processName} 실행 중... {waitedSeconds + 1}초 대기.");
+                }                
+                Log($"[{ip}] {processName} is running... waiting for {waitedSeconds + 1} sec..");
                 Debug.WriteLine($"[{ip}] {processName} 실행 중... {waitedSeconds + 1}초 대기.");
                 System.Threading.Thread.Sleep(1000);
                 waitedSeconds++;
@@ -590,15 +616,15 @@ namespace AutoPatcher
             //else
             {
                 // 버전 정보가 없으면 파일 수정 날짜로 비교
-                DateTime localModified = File.GetLastWriteTime(localFilePath);
-                DateTime remoteModified = File.GetLastWriteTime(remoteFilePath);
+                DateTime localModified = System.IO.File.GetLastWriteTime(localFilePath);
+                DateTime remoteModified = System.IO.File.GetLastWriteTime(remoteFilePath);
 
                 return localModified > remoteModified;
             }
         }
 
         // 백업 및 파일 교체
-        public void ReplaceFile(string remoteFolderPath, string fileName, string localFilePath)
+        public void ReplaceFile(string ip, string remoteFolderPath, string fileName, string localFilePath)
         {
             string remoteFilePath = System.IO.Path.Combine(remoteFolderPath, fileName);
             //string backupPath = System.IO.Path.Combine(backupRootPath, DateTime.Now.ToString("yyMMdd")) + "_back";
@@ -606,9 +632,9 @@ namespace AutoPatcher
 
             //string backupFilePath = System.IO.Path.Combine(backupPath, fileName);
             //File.Move(remoteFilePath, backupFilePath);
-            File.Delete(remoteFilePath);
-            File.Copy(localFilePath, remoteFilePath);
-            SetMessage($"[{remoteFolderPath}] 업데이트 완료: {fileName}");
+            System.IO.File.Delete(remoteFilePath);
+            System.IO.File.Copy(localFilePath, remoteFilePath);                        
+            Log($"[{ip}] _ [{remoteFolderPath}] Update completed: {fileName}");
             Debug.WriteLine($"[{remoteFolderPath}] 업데이트 완료: {fileName}");
         }
 
@@ -629,6 +655,7 @@ namespace AutoPatcher
             }
             catch (Exception ex)
             {
+                Log(ex.Message, LogLevel.ERROR);
                 Console.WriteLine($"Error: {ex.Message}");
                 return false;
             }
@@ -636,7 +663,7 @@ namespace AutoPatcher
 
         public string GetRelativePath(string basePath, string targetPath)
         {
-            FileAttributes fa = File.GetAttributes(targetPath);
+            FileAttributes fa = System.IO.File.GetAttributes(targetPath);
             Uri baseUri = null;
             Uri targetUri = null;
 
@@ -709,10 +736,12 @@ namespace AutoPatcher
                 FilesToCheck = res.files;
                 FoldersToCheck = res.folders;
 
+                Log($"{FilesToCheck.Count} files loaded");
 
             }
             catch (Exception ex)
             {
+                Log($"Error loading files: {ex.Message}", LogLevel.ERROR);
                 System.Windows.MessageBox.Show($"Error loading files: {ex.Message}");
             }
         }
@@ -742,6 +771,7 @@ namespace AutoPatcher
             }
             catch (Exception ex)
             {
+                Log($"Error occurred while accessing the directory: {ex.Message}",LogLevel.ERROR);
                 System.Windows.MessageBox.Show($"디렉터리 접근 중 오류 발생: {ex.Message}");
                 return (new List<string>(), new List<string>());
             }
@@ -754,7 +784,7 @@ namespace AutoPatcher
         // 파일 버전 불러오기
         string GetFileVersion(string filePath)
         {
-            if (File.Exists(filePath))
+            if (System.IO.File.Exists(filePath))
             {
                 FileVersionInfo info = FileVersionInfo.GetVersionInfo(filePath);
                 return info.FileVersion ?? string.Empty;
@@ -775,6 +805,7 @@ namespace AutoPatcher
 
             if (string.IsNullOrEmpty(src) || string.IsNullOrEmpty(des))
             {
+                Log("Please provide both source and target directory paths.", LogLevel.ERROR);
                 System.Windows.MessageBox.Show("Please provide both source and target directory paths.");
                 return false;
             }
@@ -783,6 +814,7 @@ namespace AutoPatcher
             {
                 if (!Directory.Exists(src))
                 {
+                    Log($"{src} doesn't exist",LogLevel.ERROR);
                     System.Windows.MessageBox.Show($"{src} doesn't exist");
                     return false;
                 }
@@ -794,8 +826,8 @@ namespace AutoPatcher
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"Error: {ex.Message}");
-                SetWarnning($"Error: {ex.Message}");
+                Log($"Error: {ex.Message}", LogLevel.ERROR);
+                System.Windows.MessageBox.Show($"Error: {ex.Message}");                
                 return false;
             }
             return true;
@@ -823,10 +855,10 @@ namespace AutoPatcher
 
         public static void CopyFile(string src, string dest)
         {
-            if (File.Exists(src))
+            if (System.IO.File.Exists(src))
             {
                 // 파일 생성
-                File.Copy(src, dest, true);
+                System.IO.File.Copy(src, dest, true);
                 Debug.WriteLine("File copied successfully!");
             }
             else
@@ -888,7 +920,7 @@ namespace AutoPatcher
             // 압축된 파일 이름은 소스 디렉터리의 이름 + .zip 
             string zipFilePath = System.IO.Path.Combine(targetDir, DateTime.Now.ToString("yyMMdd") + backupType + "_back.zip");
 
-            if (File.Exists(zipFilePath))
+            if (System.IO.File.Exists(zipFilePath))
             {
                 zipFilePath = zipFilePath.Substring(0, zipFilePath.Length - 4);
                 zipFilePath += "_" + DateTime.Now.ToString("HH_mm_ss") + ".zip";
@@ -899,12 +931,12 @@ namespace AutoPatcher
 
         #endregion
 
-        private void SelectFolderButton_Click(object sender, RoutedEventArgs e)
+        private void btnSetPatchDirectory(object sender, RoutedEventArgs e)
         {
             // Use FolderBrowserDialog to select a folder
             if (string.IsNullOrEmpty(ProcessNameToCheck))
             {
-                SetWarnning("Set the process name");
+                Log("Set the process name",LogLevel.ERROR);                
                 System.Windows.MessageBox.Show("Set the process name");
                 return;
             }
@@ -916,9 +948,10 @@ namespace AutoPatcher
             if(cofd.ShowDialog()==CommonFileDialogResult.Ok)
             {
                 SourceDirectory = cofd.FileName + "\\";
+                Log($"Loading.. {SourceDirectory}");
                 LoadFilesFromFolder(cofd.FileName);
                 lblCurDir.Content = cofd.FileName;
-                SetMessage("Loaded patch lsit");
+                Log("Loaded patch list");                
             }
             
 
@@ -941,43 +974,57 @@ namespace AutoPatcher
         {
             if (SelectedMode == -1)
             {
-                System.Windows.MessageBox.Show("패치할 작업을 선택해주세요");
+                Log("Select node type",LogLevel.ERROR);
+                System.Windows.MessageBox.Show("Select node type");
                 return;
             }
+
             Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
             if (dlg.ShowDialog() == true)
             {
                 if (dlg.CheckFileExists == true)
                 {
-                    SetMessage("Loading...");
-                    ExcelPath = dlg.FileName;
+                    Log($"Loading...{dlg.FileName}");                                
+                    ExcelPath = dlg.FileName;                    
                     LoadExcelData(dlg.FileName);
                     lblCurExcel.Content = dlg.FileName;
-                    SetMessage("Loaded patch list");                    
+                    Log($"Loaded machine list : {ModeType}");                                  
                 }
             }
         }
 
         private void btnRunPatch_Click(object sender, RoutedEventArgs e)
-        {
+        {            
             if (SelectedMode == -1)
             {
-                System.Windows.MessageBox.Show("패치할 작업을 선택해주세요");
-                SetWarnning("Select a patch node");
+                Log("Select a patch node", LogLevel.ERROR);
+                System.Windows.MessageBox.Show("Select a patch node");                
                 return;
             }
 
             var tempres = FilesToCheck.Find(x => x.Contains(ProcessNameToCheck));
             if (string.IsNullOrEmpty(tempres))
             {
-                SetWarnning(string.Format("Does not including process {0}", ProcessNameToCheck));
-                System.Windows.MessageBox.Show(string.Format("Does not including process {0}", ProcessNameToCheck));
+                Log($"Does not including process : {ProcessNameToCheck}",LogLevel.ERROR);                
+                System.Windows.MessageBox.Show($"Does not including process : {ProcessNameToCheck}");
                 return;
             }
 
-            SetMessage("Start Patching");
-            if (StartAutoPatch()) SetMessage("All completed");
-            else SetWarnning("Failed to patch");
+            if (IPAddresses.Count == 0)
+            {
+                System.Windows.MessageBox.Show("No selected mahcine");
+                Log("No equipment specified", LogLevel.INFO);                
+            }
+
+            Log($"Start Patching .. {IPAddresses.Count} machines selected");            
+            if (StartAutoPatch())
+            {
+                Log("All Patch completed");                
+            }
+            else
+            {
+                Log("Failed to patch",LogLevel.IMPORTANT);                
+            }
         }
 
         private void CheckBox_Checked(object sender, RoutedEventArgs e)
@@ -1166,11 +1213,11 @@ namespace AutoPatcher
                 }
 
                 if (!string.IsNullOrEmpty(ExcelPath))
-                {
-                    SetMessage($"Loading ...");
+                {                    
                     InitItems();
-                    LoadExcelData(ExcelPath);
-                    SetMessage($"Loaded machine list");
+                    Log($"Loading...{ExcelPath}");
+                    LoadExcelData(ExcelPath);                    
+                    Log($"Loaded machine list : {ModeType}");
                 }
             }
             #endregion
@@ -1194,6 +1241,7 @@ namespace AutoPatcher
                     ProcessNameToCheck = "IS.exe";
                     lblProcName.Content = ProcessNameToCheck;
                 }
+                Log($"{PCType}_{ProcessNameToCheck} selected ");
             }
             #endregion
         }
@@ -1284,7 +1332,6 @@ namespace AutoPatcher
         {
             get { return v3Selected; }
             set { v3Selected = value; OnPropertyChanged(nameof(V3Selected)); }
-
         }
 
         public bool V4Selected
