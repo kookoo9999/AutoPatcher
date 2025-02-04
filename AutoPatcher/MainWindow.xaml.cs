@@ -31,15 +31,31 @@ using static System.Windows.Forms.VisualStyles.VisualStyleElement.Button;
 using System.Collections;
 using Microsoft.WindowsAPICodePack.Dialogs;
 using static System.Net.WebRequestMethods;
+using Microsoft.Office.Interop.Excel;
+using System.Threading;
 
 namespace AutoPatcher
 {
     /// <summary>
     /// MainWindow.xaml에 대한 상호 작용 논리
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : System.Windows.Window
     {
         #region member
+
+        private bool _IsPatching;
+        public bool IsPatching
+        {
+            get { return _IsPatching; }
+            set { _IsPatching = value; }
+        }
+
+        private bool _ErrorStop;
+        public bool ErrorStop
+        {
+            get { return _ErrorStop; }
+            set { _ErrorStop = value; }
+        }
 
         #region radio button (LF,SII,BGA,COB)
         private bool[] _ModeArray = new bool[4] { false, false, false, false };
@@ -203,6 +219,7 @@ namespace AutoPatcher
             }
             LogBox.Inlines.Add(run);
             LogScroll.ScrollToEnd();
+
             return;
         }
 
@@ -220,12 +237,12 @@ namespace AutoPatcher
 
         public void SetComplete(string ip)
         {
-            ChangeCellColor(ip, Brushes.OrangeRed);
+            ChangeCellColor(ip, Brushes.LimeGreen);
         }
 
         public void SetFail(string ip)
         {
-            ChangeCellColor(ip, Brushes.LimeGreen);
+            ChangeCellColor(ip, Brushes.OrangeRed);
         }
 
         private void ChangeCellColor(string val, SolidColorBrush color)
@@ -358,6 +375,7 @@ namespace AutoPatcher
                     ChangeCellColor(ip, Brushes.IndianRed);
                     return false;
                 }
+                Log("Ping success");
                 #endregion
 
                 #region check process running
@@ -434,6 +452,23 @@ namespace AutoPatcher
             }
             
             return true;
+        }
+
+        private void Patch()
+        {
+            System.Action action;
+
+            action = () =>
+            {
+
+            };
+            Dispatcher.Invoke(action);
+        }
+
+        public void StartPatch()
+        {
+            Thread patchThread = new Thread(Patch);
+            patchThread.Start();
         }
 
         public bool StartAutoPatch()
@@ -849,7 +884,7 @@ namespace AutoPatcher
             backupPath = System.IO.Path.Combine(backupPath, backupType);
             if (!Directory.Exists(backupPath)) Directory.CreateDirectory(backupPath);
 
-            // 폴더복사
+            // 폴더복사            
             CopyFolder(src, backupPath);
         }
 
@@ -871,28 +906,31 @@ namespace AutoPatcher
         {
             if (Directory.Exists(src))
             {
-                // 폴더 생성
-                if (!Directory.Exists(dest)) Directory.CreateDirectory(dest);
-                var files = Directory.GetFiles(src);
-
-                // 파일 복사
-                foreach (var file in files)
+                if (!src.ToLower().Contains(".git") || !src.ToLower().Contains("git"))
                 {
-                    string fileName = System.IO.Path.GetFileName(file);
-                    string destinationFilePath = System.IO.Path.Combine(dest, fileName);
-                    CopyFile(file, destinationFilePath);
-                }
+                    // 폴더 생성
+                    if (!Directory.Exists(dest)) Directory.CreateDirectory(dest);
+                    var files = Directory.GetFiles(src);
 
-                // 폴더 복사 (재귀)
-                var directories = Directory.GetDirectories(src);
-                foreach (var directory in directories)
-                {
-                    string folderName = System.IO.Path.GetFileName(directory);
-                    string destinationSubFolderPath = System.IO.Path.Combine(dest, folderName);
-                    CopyFolder(directory, destinationSubFolderPath);
-                }
+                    // 파일 복사
+                    foreach (var file in files)
+                    {
+                        string fileName = System.IO.Path.GetFileName(file);
+                        string destinationFilePath = System.IO.Path.Combine(dest, fileName);
+                        CopyFile(file, destinationFilePath);
+                    }
 
-                Debug.WriteLine("Folder copied successfully!");
+                    // 폴더 복사 (재귀)
+                    var directories = Directory.GetDirectories(src);
+                    foreach (var directory in directories)
+                    {
+                        string folderName = System.IO.Path.GetFileName(directory);
+                        string destinationSubFolderPath = System.IO.Path.Combine(dest, folderName);
+                        CopyFolder(directory, destinationSubFolderPath);
+                    }
+
+                    Debug.WriteLine("Folder copied successfully!");
+                }    
             }
             else
             {
@@ -1016,7 +1054,8 @@ namespace AutoPatcher
                 Log("No equipment specified", LogLevel.INFO);                
             }
 
-            Log($"Start Patching .. {IPAddresses.Count} machines selected");            
+            Log($"Start Patching .. {IPAddresses.Count} machines selected");
+
             if (StartAutoPatch())
             {
                 Log("All Patch completed");                
