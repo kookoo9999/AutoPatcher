@@ -454,29 +454,68 @@ namespace AutoPatcher
             return true;
         }
 
-        private void Patch()
+        private async Task Patch()
         {
-            System.Action action;
+            Log("Start patch");
 
-            action = () =>
+            if (SelectedMode == -1)
             {
+                Log("Select a patch node", LogLevel.ERROR);
+                System.Windows.MessageBox.Show("Select a patch node");                
+            }
 
-            };
-            Dispatcher.Invoke(action);
+            if (FilesToCheck.Count == 0)
+            {
+                Log("File count is 0");
+            }
+
+            for (int i=0; i<=100; i++)
+            {
+                await Task.Delay(1000);
+                Log($"Test..{i}");          
+            }
+
+
         }
 
-        public void StartPatch()
+        private async void StartPatch(object sender, RoutedEventArgs e)
         {
-            Thread patchThread = new Thread(Patch);
-            patchThread.Start();
+            if (SourceDirectory == null)
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    await Task.Delay(500);
+                    Log("No selected source directory", LogLevel.IMPORTANT);
+                }
+                System.Windows.MessageBox.Show("No selected source directory");                
+            }
+
+            else
+            {
+                foreach(string file in FilesToCheck)
+                {
+                    Log($"name : {file}");
+                    await Task.Delay(1);
+                }
+
+                SetFail("192.168.30.151");
+                await Task.Delay(1000);
+                SetComplete("192.168.30.161");
+                await Task.Delay(1000);
+                SetComplete("192.168.30.171");
+            }
+
+            await Task.Delay(1000);
+
+            await Patch();
         }
 
         public bool StartAutoPatch()
         {
             if (SourceDirectory == null)
             {
-                System.Windows.MessageBox.Show("No selected source directory");
                 Log("No selected source directory", LogLevel.IMPORTANT);
+                System.Windows.MessageBox.Show("No selected source directory");                
                 return false;
             }
 
@@ -969,11 +1008,12 @@ namespace AutoPatcher
 
         #endregion
 
-        private void btnSetPatchDirectory(object sender, RoutedEventArgs e)
+        private async void btnSetPatchDirectory(object sender, RoutedEventArgs e)
         {
             // Use FolderBrowserDialog to select a folder
             if (string.IsNullOrEmpty(ProcessNameToCheck))
             {
+                await Task.Delay(1);
                 Log("Set the process name",LogLevel.ERROR);                
                 System.Windows.MessageBox.Show("Set the process name");
                 return;
@@ -986,6 +1026,7 @@ namespace AutoPatcher
             if(cofd.ShowDialog()==CommonFileDialogResult.Ok)
             {
                 SourceDirectory = cofd.FileName + "\\";
+                await Task.Delay(1);
                 Log($"Loading.. {SourceDirectory}");
                 LoadFilesFromFolder(cofd.FileName);
                 lblCurDir.Content = cofd.FileName;
@@ -1050,19 +1091,19 @@ namespace AutoPatcher
 
             if (IPAddresses.Count == 0)
             {
-                System.Windows.MessageBox.Show("No selected mahcine");
-                Log("No equipment specified", LogLevel.INFO);                
+                Log("No equipment specified", LogLevel.INFO);
+                System.Windows.MessageBox.Show("No selected mahcine");                          
             }
 
             Log($"Start Patching .. {IPAddresses.Count} machines selected");
-
+            
             if (StartAutoPatch())
             {
-                Log("All Patch completed");                
+                Log("All Patch completed");
             }
             else
             {
-                Log("Failed to patch",LogLevel.IMPORTANT);                
+                Log("Failed to patch", LogLevel.IMPORTANT);
             }
         }
 

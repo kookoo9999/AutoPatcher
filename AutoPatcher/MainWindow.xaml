@@ -307,7 +307,7 @@
                             Height              ="30"  
                             VerticalAlignment   ="Top" 
                             HorizontalAlignment ="Left" 
-                            Click               ="btnRunPatch_Click"/>
+                            Click               ="StartPatch"/>
                     
                 </StackPanel>                
             </Grid>
