@@ -33,6 +33,9 @@ using Microsoft.WindowsAPICodePack.Dialogs;
 using static System.Net.WebRequestMethods;
 using Microsoft.Office.Interop.Excel;
 using System.Threading;
+using System.Windows.Controls.Primitives;
+using AutoPatcher.Properties;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 
 namespace AutoPatcher
 {
@@ -42,6 +45,13 @@ namespace AutoPatcher
     public partial class MainWindow : System.Windows.Window
     {
         #region member
+
+        private bool _PatchResult;
+        public bool PatchResult
+        {
+            get { return _PatchResult; }
+            set { _PatchResult = value; }
+        }
 
         private bool _IsPatching;
         public bool IsPatching
@@ -209,13 +219,13 @@ namespace AutoPatcher
             if (level == LogLevel.INFO || level == LogLevel.DEBUG)
             {
                 run.Foreground = Brushes.Black;                
-                SetMessage(msg);
+                //SetMessage(msg);
             }
             else if (level == LogLevel.ERROR || level == LogLevel.IMPORTANT)
             {
                 if (level == LogLevel.IMPORTANT) run.Foreground = Brushes.Orange;
                 else run.Foreground = Brushes.Red;
-                SetWarnning(msg);
+                //SetWarnning(msg);
             }
             LogBox.Inlines.Add(run);
             LogScroll.ScrollToEnd();
@@ -242,12 +252,12 @@ namespace AutoPatcher
 
         public void SetFail(string ip)
         {
-            ChangeCellColor(ip, Brushes.OrangeRed);
+            ChangeCellColor(ip, Brushes.IndianRed);
         }
 
         private void ChangeCellColor(string val, SolidColorBrush color)
         {
-            // DataGrid의 각 행과 셀을 순회합니다.
+            // DataGrid의 각 행과 셀을 순회            
             foreach (var row in this.DataGrid.Items)
             {
                 var dataGridRow = (DataGridRow)this.DataGrid.ItemContainerGenerator.ContainerFromItem(row);
@@ -257,11 +267,10 @@ namespace AutoPatcher
                 {
                     var column = this.DataGrid.Columns[cell.Column.DisplayIndex];
 
-                    // 셀의 내용을 가져옵니다.
+                    // 셀의 내용
                     var cellContent = column.GetCellContent(row);
                     if (cellContent is ContentPresenter cp)
                     {
-
                         var sp = cp.ContentTemplate.FindName("StackPanel", cp) as StackPanel;
                         if (sp != null)
                         {
@@ -270,12 +279,16 @@ namespace AutoPatcher
                             {
                                 // 텍스트가 일치하면 셀 배경 색상 변경
                                 cell.Background = color; // 원하는 색상
+                                cell.Focus();
                                 break;
                             }
                         }
                     }
                 }
             }
+
+
+            
         }
 
         private IEnumerable<T> GetVisualChildren<T>(DependencyObject depObj) where T : DependencyObject
@@ -363,7 +376,7 @@ namespace AutoPatcher
         /// <param name="remoteBackupPath">(\\backup)</param>
         /// <param name="remoteFolderPath">Excute path (bin)</param>
         /// <returns></returns>
-        private bool Patch(string ip ,string[] BackupPathList,string remoteBackupPath,string remoteFolderPath)
+        private async Task Patch(string ip ,string[] BackupPathList,string remoteBackupPath,string remoteFolderPath)
         {
             try
             {
@@ -373,22 +386,27 @@ namespace AutoPatcher
                     SetWarnning($"[{ip}] _ No response ");
                     System.Windows.MessageBox.Show($"No response {ip}");
                     ChangeCellColor(ip, Brushes.IndianRed);
-                    return false;
+                    await Task.Delay(10);
+                    PatchResult = false;
+                    return ;
                 }
-                Log("Ping success");
+                Log($"[{ip}] _ Ping success");
+                await Task.Delay(10);
                 #endregion
 
                 #region check process running
                 // 프로그램 실행 중 확인
                 if (IsProgramRunning(ip, ProcessNameToCheck))
                 {                    
-                    Log($"[{ip}] {ProcessNameToCheck} is running : Waiting for exit ...");
+                    Log($"[{ip}] _ {ProcessNameToCheck} is running : Waiting for exit ...");
                     Debug.WriteLine($"[{ip}] 프로그램 실행 중: {ProcessNameToCheck}. 종료를 기다립니다...");
+                    await Task.Delay(10);
                     WaitForProcessToExit(ip, ProcessNameToCheck, timeoutSeconds: 120);
                 }
                 else
                 {                    
-                    Log($"[{ip}] : [{ProcessNameToCheck}] is not running. Try to patch..");
+                    Log($"[{ip}] _ [{ProcessNameToCheck}] is not running. Try to patch..");
+                    await Task.Delay(10);
                     Debug.WriteLine($"[{ip}] 프로그램이 실행 중이 아닙니다. 패치 진행.");
                 }
                 #endregion
@@ -397,15 +415,19 @@ namespace AutoPatcher
                 foreach (string strBackUpPath in BackupPathList)
                 {                                 
                     Log($"[{ip}] _ [{strBackUpPath}] back up..");
+                    await Task.Delay(1);
                     if (!CheckBackupFolder(strBackUpPath, remoteBackupPath))
                     {                        
-                        Log($"{strBackUpPath} dosen't exist", LogLevel.ERROR);
-                        return false;
+                        Log($"[{ip}] _ {strBackUpPath} dosen't exist", LogLevel.ERROR);
+                        await Task.Delay(1);
+                        PatchResult = false;
+                        return ;
                     }
 
                     else
                     {                        
                         Log($"[{ip}] _ [{strBackUpPath}] Backup successfully!");
+                        await Task.Delay(1);
                     }
                 }
                 #endregion
@@ -420,103 +442,59 @@ namespace AutoPatcher
                     }
                 }
                 // 파일 업데이트 작업
+                int cnt = 0; double pgcnt = 0.0;
                 foreach (string fileName in FilesToCheck)
                 {                    
-                    Log($"[{ip}] _ Patching {fileName} ..");
+                    //Log($"[{ip}] _ Patching {fileName} ..");
+                    await Task.Delay(10);
+                    cnt++;
                     string localFilePath = System.IO.Path.Combine(SourceDirectory, fileName);
                     string remoteFilePath = System.IO.Path.Combine(remoteFolderPath, fileName);
 
-                    if (!System.IO.File.Exists(remoteFilePath))
-                    {
-                        Debug.WriteLine($"[{ip}] 원격 파일 없음: {fileName}.");
-                    }
+                    //if (!System.IO.File.Exists(remoteFilePath))
+                    //{
+                    //    Debug.WriteLine($"[{ip}] 원격 파일 없음: {fileName}.");
+                    //}
 
                     if (IsFileUpdateNeeded(localFilePath, remoteFilePath))
                     {                        
                         Debug.WriteLine($"[{ip}] 업데이트 필요: {fileName}. 백업 및 교체를 진행합니다.");
-                        Log($"[{ip}] _ Update: {fileName}. Backup and replace in progress.");
+                        //Log($"[{ip}] _ Update: {fileName}. Backup and replace in progress.");
+                        await Task.Delay(1);
                         ReplaceFile(ip,remoteFolderPath, fileName, localFilePath);
                     }
                     else
                     {
                         Debug.WriteLine($"[{ip}] 최신 상태 유지: {fileName}");
                         Log($"[{ip}] _ Skip : {fileName}");
+                        await Task.Delay(1);
                     }
+                    pgcnt = (((double)cnt / (double)FilesToCheck.Count)) * 100;
+                    pbstatusBar.Value = pgcnt;
+                    txtStatusBar.Text = pgcnt.ToString("0.0")+"%";
+                    await Task.Delay(1);
                 }
                 #endregion
             }
             catch (Exception ex)
             {                
                 Log(ex.Message,LogLevel.ERROR);
-                return false;
+                await Task.Delay(10);
+                PatchResult = false;
+                return ;
             }
-            
-            return true;
+
+            PatchResult = true;
+            return ;
         }
 
-        private async Task Patch()
-        {
-            Log("Start patch");
-
-            if (SelectedMode == -1)
-            {
-                Log("Select a patch node", LogLevel.ERROR);
-                System.Windows.MessageBox.Show("Select a patch node");                
-            }
-
-            if (FilesToCheck.Count == 0)
-            {
-                Log("File count is 0");
-            }
-
-            for (int i=0; i<=100; i++)
-            {
-                await Task.Delay(1000);
-                Log($"Test..{i}");          
-            }
-
-
-        }
-
-        private async void StartPatch(object sender, RoutedEventArgs e)
-        {
-            if (SourceDirectory == null)
-            {
-                for (int i = 0; i < 3; i++)
-                {
-                    await Task.Delay(500);
-                    Log("No selected source directory", LogLevel.IMPORTANT);
-                }
-                System.Windows.MessageBox.Show("No selected source directory");                
-            }
-
-            else
-            {
-                foreach(string file in FilesToCheck)
-                {
-                    Log($"name : {file}");
-                    await Task.Delay(1);
-                }
-
-                SetFail("192.168.30.151");
-                await Task.Delay(1000);
-                SetComplete("192.168.30.161");
-                await Task.Delay(1000);
-                SetComplete("192.168.30.171");
-            }
-
-            await Task.Delay(1000);
-
-            await Patch();
-        }
-
-        public bool StartAutoPatch()
+        public async Task StartAutoPatch()
         {
             if (SourceDirectory == null)
             {
                 Log("No selected source directory", LogLevel.IMPORTANT);
-                System.Windows.MessageBox.Show("No selected source directory");                
-                return false;
+                System.Windows.MessageBox.Show("No selected source directory");
+                return;
             }
 
             if (FilesToCheck.Count == 0)
@@ -528,6 +506,27 @@ namespace AutoPatcher
 
             foreach (string ip in IPAddresses)
             {
+                Log($"[{ip}] _ Try to access...");
+                lblIP.Content = ip;
+                pbstatusBar.Value = 0;
+                txtStatusBar.Text = 0.ToString();
+                await Task.Delay(100);
+
+                #region ping
+                if (!GetPingResult(ip))
+                {
+                    //SetWarnning($"[{ip}] _ No response ");
+                    Log($"[{ip}] _ No response",LogLevel.ERROR);
+                    //System.Windows.MessageBox.Show($"No response {ip}");
+                    SetFail(ip);                    
+                    await Task.Delay(10);
+                    PatchResult = false;
+                    continue;
+                }
+                Log($"[{ip}] _ Ping success");
+                await Task.Delay(1);
+                #endregion
+
                 string strPCtype = PCType; //"Main" vision
                 string diskType = "D";
                 string remotePath = "";
@@ -550,6 +549,7 @@ namespace AutoPatcher
                         {
                             remotePath = path;                            
                             Log($"[{ip}] _ set path : [{remotePath}] ");
+                            await Task.Delay(10);
                             break;
                         }
                     }
@@ -557,13 +557,15 @@ namespace AutoPatcher
                     {                        
                         Log($"[{ip}] _ Does not exist path",LogLevel.IMPORTANT);
                         System.Windows.MessageBox.Show($"[{ip}] _ Does not exist path");
+                        await Task.Delay(1);
                         continue;
                     }
                 }
                 catch
                 {
                     Log($"[{ip}] _ Does not exist path", LogLevel.ERROR);
-                    System.Windows.MessageBox.Show($"[{ip}] _ Does not exist path");                                        
+                    System.Windows.MessageBox.Show($"[{ip}] _ Does not exist path");
+                    await Task.Delay(1);
                     continue;
                 }
                 #endregion
@@ -576,35 +578,116 @@ namespace AutoPatcher
                 #endregion
 
                 #region Start Patch                
-                Log($"Access to [{ip}]...");
+                
                 Debug.WriteLine($"[{ip}] 접근 중...");
                 
                 try
                 {
-                    if(Patch(ip,BackupPathList,remoteBackupPath,remoteFolderPath))
+                    pbstatusBar.Visibility=Visibility.Visible;
+                    txtStatusBar.Visibility = Visibility.Visible;
+
+                    lblIP.Content = ip;
+                    pbstatusBar.Value = 0;
+                    txtStatusBar.Text = 0.ToString()+"%";
+
+                    await Patch(ip, BackupPathList, remoteBackupPath, remoteFolderPath);
+                    if(PatchResult)
                     {                        
                         Log($"[{ip}] _ patch complete");
                         SetComplete(ip);
+                        await Task.Delay(50);
                     }
                     else
                     {                        
                         Log($"[{ip}] _ patch failed",LogLevel.IMPORTANT);
                         SetFail(ip);
+                        await Task.Delay(50);
                     }                    
+                    await Task.Delay(50);
                 }
                 catch (Exception ex)
                 {                    
                     Log($"[{ip}] _ Error occured : {ex.Message}",LogLevel.ERROR);
                     Debug.WriteLine($"[{ip}] 오류 발생: {ex.Message}");
                     ChangeCellColor(ip, Brushes.IndianRed);
+                    await Task.Delay(10);
                     continue;
                 }
+                PatchResult = false;
                 #endregion
             }
 
             Debug.WriteLine("모든 작업이 완료되었습니다.");
             Console.ReadLine();
-            return true;
+            return;
+        }
+
+        bool ProcessStart(string ip, string path)
+        {
+            try
+            {
+                //func1
+                ProcessStartInfo si = new ProcessStartInfo();
+                si.FileName = "schtasks.exe";
+                si.UseShellExecute = false;
+                si.WindowStyle = ProcessWindowStyle.Hidden;
+                si.CreateNoWindow = true;
+                si.RedirectStandardInput = true;
+                Process run = new Process();
+
+                si.Arguments = string.Format("/run /tn {3} /s {0} /u {1} /p {2}", ip, "Admin", "zpsxjzl7854!",path);
+                run.StartInfo = si;
+                run.Start();
+                Thread.Sleep(300);
+
+
+                // func2
+                string remoteName = @"\\" + ip + @"\root\cimv2";
+
+                ConnectionOptions con = new ConnectionOptions();
+                ResourceManager rscManager = new ResourceManager("AutoPatcher.Resource.UserInfo", typeof(MainWindow).Assembly);
+
+                con.Username = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_ID");
+                con.Password = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_PW");
+
+                ManagementScope managementScope = new ManagementScope(remoteName, con);
+                managementScope.Options.Authentication = AuthenticationLevel.PacketPrivacy;
+                managementScope.Connect();
+
+                ManagementClass processClass = new ManagementClass(managementScope, new ManagementPath("Win32_Process"), null);
+
+                ManagementBaseObject inParams = processClass.GetMethodParameters("Create");
+                inParams["CommandLine"] = path;  
+
+                ManagementBaseObject outParams = processClass.InvokeMethod("Create", inParams, null);
+
+                uint returnCode = (uint)outParams["ReturnValue"];
+                if (returnCode == 0)
+                {
+                    Console.WriteLine("프로그램이 성공적으로 실행되었습니다.");
+                    return true;
+                }
+                else
+                {
+                    Console.WriteLine("프로그램 실행 실패. 반환 코드: " + returnCode);
+                    return false;
+                }
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Console.WriteLine($"액세스 오류: {ex.Message}");
+                return false;
+            }
+            catch (System.Net.Sockets.SocketException ex)
+            {
+                Console.WriteLine($"연결 오류: {ex.Message}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"일반 오류: {ex.Message}");
+                return false;
+            }
         }
 
         // 원격 프로그램 실행 여부 확인 (wmic로 수정필요)
@@ -708,7 +791,7 @@ namespace AutoPatcher
             //File.Move(remoteFilePath, backupFilePath);
             System.IO.File.Delete(remoteFilePath);
             System.IO.File.Copy(localFilePath, remoteFilePath);                        
-            Log($"[{ip}] _ [{remoteFolderPath}] Update completed: {fileName}");
+            Log($"[{ip}] _ Updated : {fileName}");
             Debug.WriteLine($"[{remoteFolderPath}] 업데이트 완료: {fileName}");
         }
 
@@ -798,7 +881,7 @@ namespace AutoPatcher
                 }
                 foreach (var file in files)
                 {
-                    if (file.Contains("CAM"))
+                    if (file.Contains("CAM") || file.Contains(".git"))
                     {
                         FilesToCheck.Remove(file);
                         continue;
@@ -1072,12 +1155,76 @@ namespace AutoPatcher
             }
         }
 
-        private void btnRunPatch_Click(object sender, RoutedEventArgs e)
+        private async void Testfunc(object sender , RoutedEventArgs e)
+        {
+            ProcessStart("55.60.234.241", "D:\\LF_VISION_MANUAL\\vision\\bin\\IS.exe");
+            Log("Start patch");
+
+            if (SelectedMode == -1)
+            {
+                Log("Select a patch node", LogLevel.ERROR);
+                System.Windows.MessageBox.Show("Select a patch node");
+            }
+
+            if (FilesToCheck.Count == 0)
+            {
+                Log("File count is 0");
+            }
+
+            for (int i = 0; i <= 100; i++)
+            {
+                pbstatusBar.Value = i;
+                txtStatusBar.Text = i.ToString() + "%";
+                Log($"Test..{i}");
+                await Task.Delay(1);
+            }
+
+
+        }
+
+        private async void StartPatch(object sender, RoutedEventArgs e)
+        {
+            Log("Start patch..");
+            if (SourceDirectory == null)
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    await Task.Delay(500);
+                    Log("No selected source directory", LogLevel.IMPORTANT);
+                }
+                System.Windows.MessageBox.Show("No selected source directory");
+            }
+
+            else
+            {
+                foreach (string file in FilesToCheck)
+                {
+                    Log($"name : {file}");
+                    await Task.Delay(1);
+                }
+
+                SetFail("192.168.30.100");
+                Log($"192.168.30.100 is fail");
+                await Task.Delay(1000);
+                SetComplete("192.168.30.110");
+                Log($"192.168.30.110 is complete");
+                await Task.Delay(1000);
+                SetComplete("192.168.30.200");
+                Log($"192.168.30.200 is complete");
+            }
+
+            await Task.Delay(1000);
+
+            //await Testfunc();
+        }
+
+        private async void btnRunPatch_Click(object sender, RoutedEventArgs e)
         {            
             if (SelectedMode == -1)
             {
                 Log("Select a patch node", LogLevel.ERROR);
-                System.Windows.MessageBox.Show("Select a patch node");                
+                System.Windows.MessageBox.Show("Select a patch node");     
+                
                 return;
             }
 
@@ -1086,25 +1233,32 @@ namespace AutoPatcher
             {
                 Log($"Does not including process : {ProcessNameToCheck}",LogLevel.ERROR);                
                 System.Windows.MessageBox.Show($"Does not including process : {ProcessNameToCheck}");
+                
                 return;
             }
 
             if (IPAddresses.Count == 0)
             {
-                Log("No equipment specified", LogLevel.INFO);
-                System.Windows.MessageBox.Show("No selected mahcine");                          
+                Log("No equipment specified", LogLevel.ERROR);
+                System.Windows.MessageBox.Show("No selected mahcine");
+                
+                return;
             }
 
             Log($"Start Patching .. {IPAddresses.Count} machines selected");
-            
-            if (StartAutoPatch())
-            {
-                Log("All Patch completed");
-            }
-            else
-            {
-                Log("Failed to patch", LogLevel.IMPORTANT);
-            }
+            await Task.Delay(10);
+
+            await StartAutoPatch();
+
+            Log("All Patch has been done");
+            //if (StartAutoPatch())
+            //{
+            //    Log("All Patch completed");
+            //}
+            //else
+            //{
+            //    Log("Failed to patch", LogLevel.IMPORTANT);
+            //}
         }
 
         private void CheckBox_Checked(object sender, RoutedEventArgs e)
