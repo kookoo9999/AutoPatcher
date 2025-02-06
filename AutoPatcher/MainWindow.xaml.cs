@@ -36,6 +36,7 @@ using System.Threading;
 using System.Windows.Controls.Primitives;
 using AutoPatcher.Properties;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace AutoPatcher
 {
@@ -88,13 +89,13 @@ namespace AutoPatcher
         public ObservableCollection<RowData> DataGridItems { get; private set; }
         public ObservableCollection<string> FileList { get; set; }
 
-        
+        public Collection<CellData> CellDatas { get; set; }
 
         enum LogLevel
         {
             DEBUG = 0,
             INFO = 1,
-            IMPORTANT = 2,
+            WARN = 2,
             ERROR = 3,
         }
 
@@ -168,12 +169,36 @@ namespace AutoPatcher
         {
             InitializeComponent();
             DataGridItems           = new ObservableCollection<RowData>();
+            CellDatas               = new Collection<CellData>();
             FileList                = new ObservableCollection<string>();            
             FilesToCheck            = new List<string>();
             IPAddresses             = new List<string>();
             FoldersToCheck          = new List<string>();            
             DataGrid.ItemsSource    = DataGridItems;
-            FileListBox.ItemsSource = FileList;            
+            FileListBox.ItemsSource = FileList;
+        }
+
+        string GetStringLogLevel(LogLevel lv)
+        {
+            string ret="";
+            switch (lv)
+            {
+                case LogLevel.DEBUG:
+                    ret = "DEBUG";
+                    break;
+                case LogLevel.INFO:
+                    ret = " INFO ";
+                    break;
+                case LogLevel.WARN:
+                    ret = " WARN ";
+                    break;
+                case LogLevel.ERROR:
+                    ret = "ERROR";
+                    break;
+                default:
+                    break;
+            }
+            return ret;
         }
 
         void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -211,19 +236,19 @@ namespace AutoPatcher
         
         private void Log(string msg, LogLevel level = LogLevel.INFO)
         {
-            string text = $"[{DateTime.Now.ToString("g")}] [{level}] : {msg}\n";
+            string text = $"[{DateTime.Now.ToString("g")}] [{GetStringLogLevel(level)}] : {msg}\n";
 
             Run run = new Run(text);
             
             //LogBox.AppendText(text);            
             if (level == LogLevel.INFO || level == LogLevel.DEBUG)
             {
-                run.Foreground = Brushes.Black;                
+                run.Foreground = Brushes.AntiqueWhite;                
                 //SetMessage(msg);
             }
-            else if (level == LogLevel.ERROR || level == LogLevel.IMPORTANT)
+            else if (level == LogLevel.ERROR || level == LogLevel.WARN)
             {
-                if (level == LogLevel.IMPORTANT) run.Foreground = Brushes.Orange;
+                if (level == LogLevel.WARN) run.Foreground = Brushes.Orange;
                 else run.Foreground = Brushes.Red;
                 //SetWarnning(msg);
             }
@@ -247,16 +272,20 @@ namespace AutoPatcher
 
         public void SetComplete(string ip)
         {
-            ChangeCellColor(ip, Brushes.LimeGreen);
+            CellData targetCell = CellDatas.FirstOrDefault(item => item.IP == ip);
+            ChangeCellColor(targetCell.ROW, targetCell.COLUMN, Brushes.DeepSkyBlue);
+            //ChangeCellColor(ip, Brushes.LimeGreen);
         }
 
         public void SetFail(string ip)
         {
-            ChangeCellColor(ip, Brushes.IndianRed);
+            CellData targetCell = CellDatas.FirstOrDefault(item => item.IP == ip);
+            ChangeCellColor(targetCell.ROW, targetCell.COLUMN, Brushes.IndianRed);
+            //ChangeCellColor(ip, Brushes.IndianRed);
         }
 
         private void ChangeCellColor(string val, SolidColorBrush color)
-        {
+        {            
             // DataGrid의 각 행과 셀을 순회            
             foreach (var row in this.DataGrid.Items)
             {
@@ -289,6 +318,25 @@ namespace AutoPatcher
 
 
             
+        }
+
+        private void ChangeCellColor(int row, int col, SolidColorBrush color)
+        {
+            var cell = GetCell(row, col);
+            if(cell != null)
+            {
+                cell.Background = color;
+                cell.Focus();
+            }
+        }
+
+        private System.Windows.Controls.DataGridCell GetCell(int rowIndex, int columnIndex)
+        {
+            var row = (DataGridRow)DataGrid.ItemContainerGenerator.ContainerFromIndex(rowIndex);
+            if (row == null) return null;
+
+            var cell = DataGrid.Columns[columnIndex].GetCellContent(row).Parent as System.Windows.Controls.DataGridCell;
+            return cell;
         }
 
         private IEnumerable<T> GetVisualChildren<T>(DependencyObject depObj) where T : DependencyObject
@@ -385,7 +433,8 @@ namespace AutoPatcher
                 {
                     SetWarnning($"[{ip}] _ No response ");
                     System.Windows.MessageBox.Show($"No response {ip}");
-                    ChangeCellColor(ip, Brushes.IndianRed);
+                    SetFail(ip);
+                    //ChangeCellColor(ip, Brushes.IndianRed);
                     await Task.Delay(10);
                     PatchResult = false;
                     return ;
@@ -492,7 +541,7 @@ namespace AutoPatcher
         {
             if (SourceDirectory == null)
             {
-                Log("No selected source directory", LogLevel.IMPORTANT);
+                Log("No selected source directory", LogLevel.WARN);
                 System.Windows.MessageBox.Show("No selected source directory");
                 return;
             }
@@ -510,6 +559,11 @@ namespace AutoPatcher
                 lblIP.Content = ip;
                 pbstatusBar.Value = 0;
                 txtStatusBar.Text = 0.ToString();
+                CellData cellData = CellDatas.FirstOrDefault(item => item.IP == ip);
+                var cell = GetCell(cellData.ROW, cellData.COLUMN);
+                ChangeCellColor(cellData.ROW, cellData.COLUMN, Brushes.LimeGreen);
+                cell.Focus();
+
                 await Task.Delay(100);
 
                 #region ping
@@ -555,7 +609,7 @@ namespace AutoPatcher
                     }
                     if(string.IsNullOrEmpty(remotePath))
                     {                        
-                        Log($"[{ip}] _ Does not exist path",LogLevel.IMPORTANT);
+                        Log($"[{ip}] _ Does not exist path",LogLevel.WARN);
                         System.Windows.MessageBox.Show($"[{ip}] _ Does not exist path");
                         await Task.Delay(1);
                         continue;
@@ -590,6 +644,8 @@ namespace AutoPatcher
                     pbstatusBar.Value = 0;
                     txtStatusBar.Text = 0.ToString()+"%";
 
+                    
+
                     await Patch(ip, BackupPathList, remoteBackupPath, remoteFolderPath);
                     if(PatchResult)
                     {                        
@@ -599,7 +655,7 @@ namespace AutoPatcher
                     }
                     else
                     {                        
-                        Log($"[{ip}] _ patch failed",LogLevel.IMPORTANT);
+                        Log($"[{ip}] _ patch failed",LogLevel.WARN);
                         SetFail(ip);
                         await Task.Delay(50);
                     }                    
@@ -609,7 +665,8 @@ namespace AutoPatcher
                 {                    
                     Log($"[{ip}] _ Error occured : {ex.Message}",LogLevel.ERROR);
                     Debug.WriteLine($"[{ip}] 오류 발생: {ex.Message}");
-                    ChangeCellColor(ip, Brushes.IndianRed);
+                    SetFail(ip);
+                    //ChangeCellColor(ip, Brushes.IndianRed);
                     await Task.Delay(10);
                     continue;
                 }
@@ -639,7 +696,6 @@ namespace AutoPatcher
                 run.StartInfo = si;
                 run.Start();
                 Thread.Sleep(300);
-
 
                 // func2
                 string remoteName = @"\\" + ip + @"\root\cimv2";
@@ -1190,7 +1246,7 @@ namespace AutoPatcher
                 for (int i = 0; i < 3; i++)
                 {
                     await Task.Delay(500);
-                    Log("No selected source directory", LogLevel.IMPORTANT);
+                    Log("No selected source directory", LogLevel.WARN);
                 }
                 System.Windows.MessageBox.Show("No selected source directory");
             }
@@ -1257,8 +1313,21 @@ namespace AutoPatcher
             //}
             //else
             //{
-            //    Log("Failed to patch", LogLevel.IMPORTANT);
+            //    Log("Failed to patch", LogLevel.WARN);
             //}
+        }
+
+        private T FindParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            DependencyObject parent = VisualTreeHelper.GetParent(child);
+
+            // 부모가 null이 아니고, 원하는 타입이 될 때까지 반복
+            while (parent != null && !(parent is T))
+            {
+                parent = VisualTreeHelper.GetParent(parent);
+            }
+
+            return parent as T;
         }
 
         private void CheckBox_Checked(object sender, RoutedEventArgs e)
@@ -1267,6 +1336,12 @@ namespace AutoPatcher
             var dataItem = checkBox.DataContext as RowData;
             
             string ip = "";
+
+            var sp = (StackPanel)checkBox.Parent;
+            var cell = FindParent<System.Windows.Controls.DataGridCell>(sp);
+
+            var row = DataGrid.Items.IndexOf(cell.DataContext);
+            var col = DataGrid.Columns.IndexOf(cell.Column);
 
             bool flag = (checkBox.IsChecked == true) ? true : false;
             if (checkBox.Name.Contains("Main") && dataItem != null)
@@ -1301,8 +1376,22 @@ namespace AutoPatcher
 
             if (!string.IsNullOrEmpty(ip))
             {
-                if (flag) IPAddresses.Add(ip);
-                else IPAddresses.Remove(ip);
+                if (flag)
+                {
+                    IPAddresses.Add(ip);
+                    CellDatas.Add(new CellData
+                    {
+                        IP = ip,
+                        ROW = row,
+                        COLUMN = col
+                    });
+                }
+                else
+                {
+                    IPAddresses.Remove(ip);
+                    CellData removeItem = CellDatas.FirstOrDefault(item => item.IP==ip);
+                    CellDatas.Remove(removeItem);
+                }
             }
         }
 
@@ -1593,5 +1682,13 @@ namespace AutoPatcher
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+
+    } 
+
+    public class CellData
+    {
+        public string IP { get; set; }
+        public int ROW { get; set; }
+        public int COLUMN { get; set; }
     }
 }
