@@ -563,7 +563,6 @@ namespace AutoPatcher
                 var cell = GetCell(cellData.ROW, cellData.COLUMN);
                 ChangeCellColor(cellData.ROW, cellData.COLUMN, Brushes.LimeGreen);
                 cell.Focus();
-
                 await Task.Delay(100);
 
                 #region ping
@@ -692,7 +691,7 @@ namespace AutoPatcher
                 si.RedirectStandardInput = true;
                 Process run = new Process();
 
-                si.Arguments = string.Format("/run /tn {3} /s {0} /u {1} /p {2}", ip, "Admin", "zpsxjzl7854!",path);
+                si.Arguments = string.Format("/run /tn {3} /s {0} /u {1} /p {2}", ip, "bga", "vision",path);
                 run.StartInfo = si;
                 run.Start();
                 Thread.Sleep(300);
@@ -703,8 +702,8 @@ namespace AutoPatcher
                 ConnectionOptions con = new ConnectionOptions();
                 ResourceManager rscManager = new ResourceManager("AutoPatcher.Resource.UserInfo", typeof(MainWindow).Assembly);
 
-                con.Username = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_ID");
-                con.Password = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_PW");
+                con.Username = "bga";// rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_ID");
+                con.Password = "vision";//rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_PW");
 
                 ManagementScope managementScope = new ManagementScope(remoteName, con);
                 managementScope.Options.Authentication = AuthenticationLevel.PacketPrivacy;
@@ -1213,7 +1212,7 @@ namespace AutoPatcher
 
         private async void Testfunc(object sender , RoutedEventArgs e)
         {
-            ProcessStart("55.60.234.241", "D:\\LF_VISION_MANUAL\\vision\\bin\\IS.exe");
+            ProcessStart("55.60.231.166", "D:\\main\\bin\\HDSInspector.exe");
             Log("Start patch");
 
             if (SelectedMode == -1)
