@@ -129,11 +129,10 @@
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="Background" Value="Gray"/>
                                     <Setter Property="Foreground" Value="AntiqueWhite"/>
-                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>                                    
                                 </Style>
                             </DataGridTemplateColumn.HeaderStyle>
-                            <DataGridTemplateColumn.Header>
-                                
+                            <DataGridTemplateColumn.Header>                                
                                 <StackPanel Orientation="Horizontal">
                                     <CheckBox  VerticalAlignment="Center" Margin="1,0,0,0" x:Name="chkMainAll" Checked="AllCheckbox_checked" Unchecked="AllCheckbox_checked"/>
                                     <TextBlock VerticalAlignment="Center" Margin="3,0,0,0" Text="Main"/>
@@ -149,7 +148,7 @@
                             </DataGridTemplateColumn.CellTemplate>
                             <DataGridTemplateColumn.CellStyle>
                                 <Style TargetType="DataGridCell">
-                                    <Setter Property="Background" Value="Gray"/>
+                                    <Setter Property="Background" Value="Gray"/>                                    
                                 </Style>
                             </DataGridTemplateColumn.CellStyle>
                         </DataGridTemplateColumn>
@@ -352,12 +351,20 @@
                     <Label Foreground="AntiqueWhite" FontSize="15" FontWeight="Bold" Content="Status" Name="lblIP" HorizontalAlignment="Center" HorizontalContentAlignment="Center"></Label>
                     <Label  FontSize="15" Content="-" Margin="1,0,0,0" Name="lblStatus" Visibility="Hidden"></Label>                    
                 </StackPanel>
+                <Grid Grid.Row="2" Grid.Column="3">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <ProgressBar Grid.Row="0" Grid.Column="3"  x:Name="pbstatusBar"  VerticalAlignment="Center" Minimum="0" Maximum="100" Margin="0,0,5,0" Height="30" Value="10" Visibility="Hidden"/>
+                    <TextBlock   Grid.Row="0" Grid.Column="3" FontSize="15" x:Name="txtStatusBar" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,5,0" Text="0.0%" Visibility="Hidden"/>
+
+                    <ProgressBar Grid.Row="1" Grid.Column="3"  x:Name="pbtotalBar"  VerticalAlignment="Center" Minimum="0" Maximum="100" Margin="0,0,5,0" Height="30" Value="20" Visibility="Hidden"/>
+                    <TextBlock   Grid.Row="1" Grid.Column="3" FontSize="15" x:Name="txttotalBar" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,5,0" Text="0.0%" Visibility="Hidden"/>
+                </Grid>
                 
-                <ProgressBar Grid.Column="3"  x:Name="pbstatusBar"  VerticalAlignment="Center" Minimum="0" Maximum="100" Margin="0,0,5,0" Height="30" Value="0" Visibility="Hidden"/>
-                <TextBlock Grid.Column="3" FontSize="15" x:Name="txtStatusBar" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,5,0" Text="0%" Visibility="Hidden"/>
-
-
-
+                    
+                
             </Grid>
             <Grid Grid.Row="3">
                 <Grid.ColumnDefinitions>

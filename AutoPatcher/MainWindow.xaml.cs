@@ -68,6 +68,9 @@ namespace AutoPatcher
             set { _ErrorStop = value; }
         }
 
+        double pgcnt = 0.0;
+        double pgtotalcnt = 0.0;
+
         #region radio button (LF,SII,BGA,COB)
         private bool[] _ModeArray = new bool[4] { false, false, false, false };
         public bool[] ModeArray { get { return _ModeArray; } }
@@ -491,7 +494,7 @@ namespace AutoPatcher
                     }
                 }
                 // 파일 업데이트 작업
-                int cnt = 0; double pgcnt = 0.0;
+                int cnt = 0; pgcnt = 0.0;
                 foreach (string fileName in FilesToCheck)
                 {                    
                     //Log($"[{ip}] _ Patching {fileName} ..");
@@ -518,9 +521,14 @@ namespace AutoPatcher
                         Log($"[{ip}] _ Skip : {fileName}");
                         await Task.Delay(1);
                     }
+                    
                     pgcnt = (((double)cnt / (double)FilesToCheck.Count)) * 100;
+                    pgtotalcnt += (((double)1 / ((double)FilesToCheck.Count * (double)IPAddresses.Count ))) * 100;
+
                     pbstatusBar.Value = pgcnt;
                     txtStatusBar.Text = pgcnt.ToString("0.0")+"%";
+                    pbtotalBar.Value = pgtotalcnt;
+                    txttotalBar.Text = pgtotalcnt.ToString("0.0") + "%";
                     await Task.Delay(1);
                 }
                 #endregion
@@ -553,12 +561,28 @@ namespace AutoPatcher
                 FoldersToCheck = res.folders;
             }
 
+            pbstatusBar.Visibility = Visibility.Visible;
+            txtStatusBar.Visibility = Visibility.Visible;
+
+            pbtotalBar.Visibility = Visibility.Visible;
+            txttotalBar.Visibility = Visibility.Visible;
+
+            //lblIP.Content = ip;
+            pbstatusBar.Value = 0;
+            txtStatusBar.Text = pgcnt.ToString("0.0") + "%";
+            pbtotalBar.Value = 0;
+            txttotalBar.Text = 0.ToString("0.0") + "%";
+            pgtotalcnt = 0.0;
+            await Task.Delay(3);
+            
             foreach (string ip in IPAddresses)
             {
                 Log($"[{ip}] _ Try to access...");
                 lblIP.Content = ip;
                 pbstatusBar.Value = 0;
-                txtStatusBar.Text = 0.ToString();
+                txtStatusBar.Text = 0.ToString("0.0") + "%";
+                
+
                 CellData cellData = CellDatas.FirstOrDefault(item => item.IP == ip);
                 var cell = GetCell(cellData.ROW, cellData.COLUMN);
                 ChangeCellColor(cellData.ROW, cellData.COLUMN, Brushes.LimeGreen);
@@ -574,6 +598,9 @@ namespace AutoPatcher
                     SetFail(ip);                    
                     await Task.Delay(10);
                     PatchResult = false;
+                    pgtotalcnt += ((double)1 / (double)(IPAddresses.Count))*100;
+                    pbtotalBar.Value = pgtotalcnt;
+                    txttotalBar.Text = pgtotalcnt.ToString("0.0") + "%";
                     continue;
                 }
                 Log($"[{ip}] _ Ping success");
@@ -636,15 +663,6 @@ namespace AutoPatcher
                 
                 try
                 {
-                    pbstatusBar.Visibility=Visibility.Visible;
-                    txtStatusBar.Visibility = Visibility.Visible;
-
-                    lblIP.Content = ip;
-                    pbstatusBar.Value = 0;
-                    txtStatusBar.Text = 0.ToString()+"%";
-
-                    
-
                     await Patch(ip, BackupPathList, remoteBackupPath, remoteFolderPath);
                     if(PatchResult)
                     {                        
