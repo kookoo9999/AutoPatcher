@@ -44,7 +44,8 @@
                           HorizontalScrollBarVisibility ="Auto"
                           VerticalScrollBarVisibility   ="Auto"
                           HeadersVisibility             ="Column"
-                          Background="gray"                                          
+                          Background="gray"                             
+                          Width="Auto"
                           ItemsSource="{Binding Path=Groups, Source={StaticResource GroupedData}}" >
                     <DataGrid.Resources>
                         <Style TargetType="DataGrid">

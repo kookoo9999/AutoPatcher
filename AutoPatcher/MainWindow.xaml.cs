@@ -37,6 +37,7 @@ using System.Windows.Controls.Primitives;
 using AutoPatcher.Properties;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using System.Drawing;
 
 namespace AutoPatcher
 {
@@ -246,13 +247,13 @@ namespace AutoPatcher
             //LogBox.AppendText(text);            
             if (level == LogLevel.INFO || level == LogLevel.DEBUG)
             {
-                run.Foreground = Brushes.AntiqueWhite;                
+                run.Foreground = System.Windows.Media.Brushes.AntiqueWhite;                
                 //SetMessage(msg);
             }
             else if (level == LogLevel.ERROR || level == LogLevel.WARN)
             {
-                if (level == LogLevel.WARN) run.Foreground = Brushes.Orange;
-                else run.Foreground = Brushes.Red;
+                if (level == LogLevel.WARN) run.Foreground = System.Windows.Media.Brushes.Orange;
+                else run.Foreground = System.Windows.Media.Brushes.Red;
                 //SetWarnning(msg);
             }
             LogBox.Inlines.Add(run);
@@ -276,14 +277,15 @@ namespace AutoPatcher
         public void SetComplete(string ip)
         {
             CellData targetCell = CellDatas.FirstOrDefault(item => item.IP == ip);
-            ChangeCellColor(targetCell.ROW, targetCell.COLUMN, Brushes.DeepSkyBlue);
+            ChangeCellColor(targetCell.ROW, targetCell.COLUMN, System.Windows.Media.Brushes.DeepSkyBlue);
+            ProcessStart(ip);
             //ChangeCellColor(ip, Brushes.LimeGreen);
         }
 
         public void SetFail(string ip)
         {
             CellData targetCell = CellDatas.FirstOrDefault(item => item.IP == ip);
-            ChangeCellColor(targetCell.ROW, targetCell.COLUMN, Brushes.IndianRed);
+            ChangeCellColor(targetCell.ROW, targetCell.COLUMN, System.Windows.Media.Brushes.IndianRed);
             //ChangeCellColor(ip, Brushes.IndianRed);
         }
 
@@ -585,7 +587,7 @@ namespace AutoPatcher
 
                 CellData cellData = CellDatas.FirstOrDefault(item => item.IP == ip);
                 var cell = GetCell(cellData.ROW, cellData.COLUMN);
-                ChangeCellColor(cellData.ROW, cellData.COLUMN, Brushes.LimeGreen);
+                ChangeCellColor(cellData.ROW, cellData.COLUMN, System.Windows.Media.Brushes.LimeGreen);
                 cell.Focus();
                 await Task.Delay(100);
 
@@ -617,7 +619,7 @@ namespace AutoPatcher
                       $@"\\{ip}\\{diskType}\\{strPCtype.ToLower()}",           // ip : D : main,vision
                       $@"\\{ip}\\{diskType}\\{strPCtype}",                     // ip : D : Main,Vision
                       $@"\\{ip}\\{diskType.ToLower()}\\{strPCtype.ToLower()}", // ip : d : main,vision
-                      $@"\\{ip}\\{diskType.ToLower()}\\{strPCtype}",           // ip : d : Main,Vision
+                      $@"\\{ip}\\{diskType.ToLower()}\\{strPCtype}",           // ip : d : Main,Vision 
                 };
 
                 #region Set path (d:main , D:main, d:Main, D:Main)
@@ -696,7 +698,7 @@ namespace AutoPatcher
             return;
         }
 
-        bool ProcessStart(string ip, string path)
+        bool ProcessStart(string ip)
         {
             try
             {
@@ -709,59 +711,75 @@ namespace AutoPatcher
                 si.RedirectStandardInput = true;
                 Process run = new Process();
 
-                si.Arguments = string.Format("/run /tn {3} /s {0} /u {1} /p {2}", ip, "bga", "vision",path);
-                run.StartInfo = si;
-                run.Start();
-                Thread.Sleep(300);
-
-                // func2
-                string remoteName = @"\\" + ip + @"\root\cimv2";
-
-                ConnectionOptions con = new ConnectionOptions();
                 ResourceManager rscManager = new ResourceManager("AutoPatcher.Resource.UserInfo", typeof(MainWindow).Assembly);
 
-                con.Username = "bga";// rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_ID");
-                con.Password = "vision";//rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_PW");
+                string id = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_ID");
+                string pw = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_PW");
 
-                ManagementScope managementScope = new ManagementScope(remoteName, con);
-                managementScope.Options.Authentication = AuthenticationLevel.PacketPrivacy;
-                managementScope.Connect();
+                si.Arguments = $"/run /tn {PCType.ToUpper()} /s {ip} /u {id} /p {pw}";
+                run.StartInfo = si;
+                run.Start();
+                Task.Delay(100);
 
-                ManagementClass processClass = new ManagementClass(managementScope, new ManagementPath("Win32_Process"), null);
+                return true;
 
-                ManagementBaseObject inParams = processClass.GetMethodParameters("Create");
-                inParams["CommandLine"] = path;  
-
-                ManagementBaseObject outParams = processClass.InvokeMethod("Create", inParams, null);
-
-                uint returnCode = (uint)outParams["ReturnValue"];
-                if (returnCode == 0)
-                {
-                    Console.WriteLine("프로그램이 성공적으로 실행되었습니다.");
-                    return true;
-                }
-                else
-                {
-                    Console.WriteLine("프로그램 실행 실패. 반환 코드: " + returnCode);
-                    return false;
-                }
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                Console.WriteLine($"액세스 오류: {ex.Message}");
-                return false;
-            }
-            catch (System.Net.Sockets.SocketException ex)
-            {
-                Console.WriteLine($"연결 오류: {ex.Message}");
-                return false;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"일반 오류: {ex.Message}");
                 return false;
             }
         }
+        /*
+            //    Thread.Sleep(300);
+
+            //    // func2
+            //    string remoteName = @"\\" + ip + @"\root\cimv2";
+
+            //    ConnectionOptions con = new ConnectionOptions();
+            //    ResourceManager rscManager = new ResourceManager("AutoPatcher.Resource.UserInfo", typeof(MainWindow).Assembly);
+
+            //    con.Username = "bga";// rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_ID");
+            //    con.Password = "vision";//rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_PW");
+
+            //    ManagementScope managementScope = new ManagementScope(remoteName, con);
+            //    managementScope.Options.Authentication = AuthenticationLevel.PacketPrivacy;
+            //    managementScope.Connect();
+
+            //    ManagementClass processClass = new ManagementClass(managementScope, new ManagementPath("Win32_Process"), null);
+
+            //    ManagementBaseObject inParams = processClass.GetMethodParameters("Create");
+            //    inParams["CommandLine"] = path;  
+
+            //    ManagementBaseObject outParams = processClass.InvokeMethod("Create", inParams, null);
+
+            //    uint returnCode = (uint)outParams["ReturnValue"];
+            //    if (returnCode == 0)
+            //    {
+            //        Console.WriteLine("프로그램이 성공적으로 실행되었습니다.");
+            //        return true;
+            //    }
+            //    else
+            //    {
+            //        Console.WriteLine("프로그램 실행 실패. 반환 코드: " + returnCode);
+            //        return false;
+            //    }
+            //}
+            //catch (UnauthorizedAccessException ex)
+            //{
+            //    Console.WriteLine($"액세스 오류: {ex.Message}");
+            //    return false;
+            //}
+            //catch (System.Net.Sockets.SocketException ex)
+            //{
+            //    Console.WriteLine($"연결 오류: {ex.Message}");
+            //    return false;
+            //}
+            //catch (Exception ex)
+            //{
+            //    Console.WriteLine($"일반 오류: {ex.Message}");
+            //    return false;
+        */
+        
 
         // 원격 프로그램 실행 여부 확인 (wmic로 수정필요)
         bool IsProgramRunning(string ip, string processName)
@@ -1230,7 +1248,7 @@ namespace AutoPatcher
 
         private async void Testfunc(object sender , RoutedEventArgs e)
         {
-            ProcessStart("55.60.231.166", "D:\\main\\bin\\HDSInspector.exe");
+            //ProcessStart("55.60.231.166", "D:\\main\\bin\\HDSInspector.exe");
             Log("Start patch");
 
             if (SelectedMode == -1)
@@ -1568,8 +1586,15 @@ namespace AutoPatcher
 
                 if (btn.Name.Contains("Main"))
                 {
-                    _TypeArray[0] = true;
-                    PCType = "Main";
+                    if(ModeType=="SII")
+                    {
+                        PCType = "Inline";
+                    }
+                    else
+                    {
+                        PCType = "Main";
+                    }
+                    _TypeArray[0] = true;                    
                     ProcessNameToCheck = "HDSInspector.exe";
                     lblProcName.Content = ProcessNameToCheck;
                 }
