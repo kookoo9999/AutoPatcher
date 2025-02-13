@@ -277,8 +277,7 @@ namespace AutoPatcher
         public void SetComplete(string ip)
         {
             CellData targetCell = CellDatas.FirstOrDefault(item => item.IP == ip);
-            ChangeCellColor(targetCell.ROW, targetCell.COLUMN, System.Windows.Media.Brushes.DeepSkyBlue);
-            ProcessStart(ip);
+            ChangeCellColor(targetCell.ROW, targetCell.COLUMN, System.Windows.Media.Brushes.DeepSkyBlue);            
             //ChangeCellColor(ip, Brushes.LimeGreen);
         }
 
@@ -670,6 +669,7 @@ namespace AutoPatcher
                     {                        
                         Log($"[{ip}] _ patch complete");
                         SetComplete(ip);
+                        ProcessStart(ip);
                         await Task.Delay(50);
                     }
                     else
@@ -716,7 +716,7 @@ namespace AutoPatcher
                 string id = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_ID");
                 string pw = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_PW");
 
-                si.Arguments = $"/run /tn {PCType.ToUpper()} /s {ip} /u {id} /p {pw}";
+                si.Arguments = $"/run /tn {PCType.ToUpper()} /s {ip} /u {id} /p {pw}";                
                 run.StartInfo = si;
                 run.Start();
                 Task.Delay(100);
@@ -726,6 +726,7 @@ namespace AutoPatcher
             }
             catch (Exception ex)
             {
+                Log($"[{ip}] _ {ex.Message}", LogLevel.ERROR);
                 return false;
             }
         }
