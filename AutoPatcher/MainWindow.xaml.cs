@@ -638,7 +638,8 @@ namespace AutoPatcher
                     {                        
                         Log($"[{ip}] _ Does not exist path",LogLevel.WARN);
                         System.Windows.MessageBox.Show($"[{ip}] _ Does not exist path");
-                        await Task.Delay(1);
+                        SetFail(ip);
+                        await Task.Delay(10);
                         continue;
                     }
                 }
@@ -669,7 +670,8 @@ namespace AutoPatcher
                     {                        
                         Log($"[{ip}] _ patch complete");
                         SetComplete(ip);
-                        ProcessStart(ip);
+                        if (!ProcessStart(ip)) Log($"[{ip}] _  failed to run process", LogLevel.ERROR);
+                        else Log($"[{ip}] _  success to run process");
                         await Task.Delay(50);
                     }
                     else
