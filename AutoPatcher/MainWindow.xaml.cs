@@ -428,7 +428,7 @@ namespace AutoPatcher
         /// <param name="remoteBackupPath">(\\backup)</param>
         /// <param name="remoteFolderPath">Excute path (bin)</param>
         /// <returns></returns>
-        private async Task Patch(string ip ,string[] BackupPathList,string remoteBackupPath,string remoteFolderPath)
+        private async Task Patch(string ip ,List<string> BackupPathList,string remoteBackupPath,string remoteFolderPath)
         {
             try
             {
@@ -609,6 +609,7 @@ namespace AutoPatcher
                 #endregion
 
                 string strPCtype = PCType; //"Main" vision
+                if (ModeType == "SII" && ProcessNameToCheck == "IS.exe") strPCtype += "\\IS";
                 string diskType = "D";
                 string remotePath = "";
                 string[] remotePathList =
@@ -655,8 +656,12 @@ namespace AutoPatcher
                 #region set path(backup,source)
                 string remoteFolderPath = remotePath + "\\bin";
                 string remoteBackupPath = remotePath + "\\backup";
-                string remoteConfigPath = remotePath + "\\config";
-                string[] BackupPathList = { remoteFolderPath, remoteConfigPath };
+                string remoteConfigPath = remotePath + "\\config";                
+                List<string> BackupPathList = new List<string>();
+
+                BackupPathList.Add(remoteFolderPath);
+                if (ProcessNameToCheck == "HDSInspector.exe") BackupPathList.Add(remoteConfigPath);
+
                 #endregion
 
                 #region Start Patch                
@@ -1062,7 +1067,7 @@ namespace AutoPatcher
             }
 
             try
-            {
+            {                
                 if (!Directory.Exists(src))
                 {
                     Log($"{src} doesn't exist",LogLevel.ERROR);
@@ -1604,8 +1609,15 @@ namespace AutoPatcher
 
                 else if (btn.Name.Contains("Vision"))
                 {
-                    _TypeArray[1] = false;
-                    PCType = "Vision";
+                    if(ModeType=="SII")
+                    {
+                        PCType = "Inline";
+                    }
+                    else
+                    {
+                        PCType = "Vision";
+                    }
+                    _TypeArray[1] = false;                    
                     ProcessNameToCheck = "IS.exe";
                     lblProcName.Content = ProcessNameToCheck;
                 }
