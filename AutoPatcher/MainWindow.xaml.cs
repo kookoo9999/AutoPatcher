@@ -38,6 +38,7 @@ using AutoPatcher.Properties;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using System.Drawing;
+using Common;
 
 namespace AutoPatcher
 {
@@ -69,6 +70,7 @@ namespace AutoPatcher
             set { _ErrorStop = value; }
         }
 
+        
         double pgcnt = 0.0;
         double pgtotalcnt = 0.0;
 
@@ -420,6 +422,28 @@ namespace AutoPatcher
         #endregion
 
         #region Patch
+
+        public bool ConnectNetworkDrive(string IPPath, string ID, string Password)
+        {
+
+            int Count = 0;
+            while (true)
+            {
+                Count++;
+                int state = NetworkDriveConnector.TryConnectNetwork(IPPath, ID, Password);
+
+                if (NetworkDriveConnector.TryConnectResult(state))
+                {
+                    return true;
+                }
+                else if (!NetworkDriveConnector.TryConnectResult(state) && Count >3)
+                {
+                    return false;
+                }
+            }
+        }
+
+
         /// <summary>
         /// Start Patch in ip
         /// </summary>
@@ -583,7 +607,6 @@ namespace AutoPatcher
                 pbstatusBar.Value = 0;
                 txtStatusBar.Text = 0.ToString("0.0") + "%";
                 
-
                 CellData cellData = CellDatas.FirstOrDefault(item => item.IP == ip);
                 var cell = GetCell(cellData.ROW, cellData.COLUMN);
                 ChangeCellColor(cellData.ROW, cellData.COLUMN, System.Windows.Media.Brushes.LimeGreen);
@@ -614,19 +637,34 @@ namespace AutoPatcher
                 string remotePath = "";
                 string[] remotePathList =
                 {
-                      $@"\\{ip}\\{strPCtype.ToLower()}",                       // ip : main,vision
-                      $@"\\{ip}\\{strPCtype}",                                 // ip : Main,Vision
-                      $@"\\{ip}\\{diskType}\\{strPCtype.ToLower()}",           // ip : D : main,vision
-                      $@"\\{ip}\\{diskType}\\{strPCtype}",                     // ip : D : Main,Vision
-                      $@"\\{ip}\\{diskType.ToLower()}\\{strPCtype.ToLower()}", // ip : d : main,vision
-                      $@"\\{ip}\\{diskType.ToLower()}\\{strPCtype}",           // ip : d : Main,Vision 
+                      $"\\\\{ip}\\{strPCtype.ToLower()}",                       // ip : main,vision
+                      $"\\\\{ip}\\{strPCtype}",                                 // ip : Main,Vision
+                      $"\\\\{ip}\\{diskType}\\{strPCtype.ToLower()}",           // ip : D : main,vision
+                      $"\\\\{ip}\\{diskType}\\{strPCtype}",                     // ip : D : Main,Vision
+                      $"\\\\{ip}\\{diskType.ToLower()}\\{strPCtype.ToLower()}", // ip : d : main,vision
+                      $"\\\\{ip}\\{diskType.ToLower()}\\{strPCtype}",           // ip : d : Main,Vision 
                 };
-
                 #region Set path (d:main , D:main, d:Main, D:Main)
+
+                ResourceManager rscManager = new ResourceManager("AutoPatcher.Resource.UserInfo", typeof(MainWindow).Assembly);
+                string id = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_ID");
+                string pw = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_PW");
+
+                
                 try
                 {
                     foreach (string path in remotePathList)
                     {
+                        #region check permission     
+                        if (!ConnectNetworkDrive(path, id, pw))
+                        {
+                            SetFail(ip);
+                            Log($"[{ip}] _ Failed to set permission");
+                            break;
+                        }
+                        #endregion
+
+                        #region check directory
                         if (Directory.Exists(path))
                         {
                             remotePath = path;                            
@@ -634,8 +672,9 @@ namespace AutoPatcher
                             await Task.Delay(10);
                             break;
                         }
+                        #endregion
                     }
-                    if(string.IsNullOrEmpty(remotePath))
+                    if (string.IsNullOrEmpty(remotePath))
                     {                        
                         Log($"[{ip}] _ Does not exist path",LogLevel.WARN);
                         System.Windows.MessageBox.Show($"[{ip}] _ Does not exist path");
@@ -665,7 +704,7 @@ namespace AutoPatcher
                 #endregion
 
                 #region Start Patch                
-                
+
                 Debug.WriteLine($"[{ip}] 접근 중...");
                 
                 try
