@@ -39,6 +39,7 @@ namespace Common
 
         public static int TryConnectNetwork(string remotePath, string userID, string pwd)
         {
+            NETRESOURCE localNetResource = new NETRESOURCE();
             int capacity = 1028;
             uint resultFlags = 0;
             uint flags = 0;
@@ -48,7 +49,12 @@ namespace Common
             NetResorce.IpRemoteName = remotePath;
             NetResorce.IpProvider = null;
 
-            int result = WNetUseConnection(IntPtr.Zero, ref NetResorce, pwd, @userID, flags, sb, ref capacity, out resultFlags);
+            localNetResource.dwType = 1; // RESOURCETYPE_DISK
+            localNetResource.IpLocalName = null;
+            localNetResource.IpRemoteName = remotePath;
+
+            //int result = WNetUseConnection(IntPtr.Zero, ref NetResorce, pwd, @userID, flags, sb, ref capacity, out resultFlags);
+            int result = WNetUseConnection(IntPtr.Zero, ref localNetResource, pwd, userID, flags, sb, ref capacity, out resultFlags);
 
             return result;
         }

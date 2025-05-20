@@ -240,7 +240,7 @@ namespace AutoPatcher
 
         #region Update result
         
-        private void Log(string msg, LogLevel level = LogLevel.INFO)
+        private void Log_o(string msg, LogLevel level = LogLevel.INFO)
         {
             string text = $"[{DateTime.Now.ToString("g")}] [{GetStringLogLevel(level)}] : {msg}\n";
 
@@ -262,6 +262,28 @@ namespace AutoPatcher
             LogScroll.ScrollToEnd();
 
             return;
+        }
+
+        private void Log(string msg, LogLevel level = LogLevel.INFO)
+        {
+            string text = $"[{DateTime.Now.ToString("g")}] [{GetStringLogLevel(level)}] : {msg}\n"; //
+            Run run = new Run(text); //
+
+            if (level == LogLevel.INFO || level == LogLevel.DEBUG) //
+            {
+                run.Foreground = System.Windows.Media.Brushes.AntiqueWhite; //
+            }
+            else if (level == LogLevel.ERROR || level == LogLevel.WARN) //
+            {
+                if (level == LogLevel.WARN) run.Foreground = System.Windows.Media.Brushes.Orange; //
+                else run.Foreground = System.Windows.Media.Brushes.Red; //
+            }
+
+            Dispatcher.InvokeAsync(() => // UI 스레드에서 실행 보장
+            {
+                LogBox.Inlines.Add(run); //
+                LogScroll.ScrollToEnd(); //
+            });
         }
 
         public void SetMessage(string msg)
@@ -586,55 +608,232 @@ namespace AutoPatcher
                 FoldersToCheck = res.folders;
             }
 
-            pbstatusBar.Visibility = Visibility.Visible;
-            txtStatusBar.Visibility = Visibility.Visible;
+            // UI 요소 초기화
+            await Dispatcher.InvokeAsync(() => {
+                pbstatusBar.Visibility = Visibility.Visible; //
+                txtStatusBar.Visibility = Visibility.Visible; //
+                pbtotalBar.Visibility = Visibility.Visible; //
+                txttotalBar.Visibility = Visibility.Visible; //
+                pbtotalBar.Value = 0; //
+                txttotalBar.Text = "0.0%"; //
+            });
+            pgtotalcnt = 0.0; //
 
-            pbtotalBar.Visibility = Visibility.Visible;
-            txttotalBar.Visibility = Visibility.Visible;
+            List<Task> patchTasks = new List<Task>();
+            int totalIPs = IPAddresses.Count;
+            int completedIPs = 0;
 
-            //lblIP.Content = ip;
-            pbstatusBar.Value = 0;
-            txtStatusBar.Text = pgcnt.ToString("0.0") + "%";
-            pbtotalBar.Value = 0;
-            txttotalBar.Text = 0.ToString("0.0") + "%";
-            pgtotalcnt = 0.0;
-            await Task.Delay(3);
-            
+            // 동시 실행 작업 수 제한 (선택 사항)
+            // int maxConcurrentTasks = 5; // 예: 동시에 5개 IP만 처리
+            // SemaphoreSlim semaphore = new SemaphoreSlim(maxConcurrentTasks);
+
+            #region 이전방식
+            //foreach (string ip in IPAddresses)
+            //{
+            //    Log($"[{ip}] _ Try to access...");
+            //    lblIP.Content = ip;
+            //    pbstatusBar.Value = 0;
+            //    txtStatusBar.Text = 0.ToString("0.0") + "%";
+
+            //    CellData cellData = CellDatas.FirstOrDefault(item => item.IP == ip);
+            //    var cell = GetCell(cellData.ROW, cellData.COLUMN);
+            //    ChangeCellColor(cellData.ROW, cellData.COLUMN, System.Windows.Media.Brushes.LimeGreen);
+            //    cell.Focus();
+            //    await Task.Delay(100);
+
+            //    #region ping
+            //    if (!GetPingResult(ip))
+            //    {
+            //        //SetWarnning($"[{ip}] _ No response ");
+            //        Log($"[{ip}] _ No response",LogLevel.ERROR);
+            //        //System.Windows.MessageBox.Show($"No response {ip}");
+            //        SetFail(ip);                    
+            //        await Task.Delay(10);
+            //        PatchResult = false;
+            //        pgtotalcnt += ((double)1 / (double)(IPAddresses.Count))*100;
+            //        pbtotalBar.Value = pgtotalcnt;
+            //        txttotalBar.Text = pgtotalcnt.ToString("0.0") + "%";
+            //        continue;
+            //    }
+            //    Log($"[{ip}] _ Ping success");
+            //    await Task.Delay(1);
+            //    #endregion
+
+            //    string strPCtype = PCType; //"Main" vision
+            //    if (ModeType == "SII" && ProcessNameToCheck == "IS.exe") strPCtype += "\\IS";
+            //    string diskType = "D";
+            //    string remotePath = "";
+            //    string[] remotePathList =
+            //    {
+            //          $"\\\\{ip}\\{strPCtype.ToLower()}",                       // ip : main,vision
+            //          $"\\\\{ip}\\{strPCtype}",                                 // ip : Main,Vision
+            //          $"\\\\{ip}\\{diskType}\\{strPCtype.ToLower()}",           // ip : D : main,vision
+            //          $"\\\\{ip}\\{diskType}\\{strPCtype}",                     // ip : D : Main,Vision
+            //          $"\\\\{ip}\\{diskType.ToLower()}\\{strPCtype.ToLower()}", // ip : d : main,vision
+            //          $"\\\\{ip}\\{diskType.ToLower()}\\{strPCtype}",           // ip : d : Main,Vision 
+            //    };
+            //    #region Set path (d:main , D:main, d:Main, D:Main)
+
+            //    ResourceManager rscManager = new ResourceManager("AutoPatcher.Resource.UserInfo", typeof(MainWindow).Assembly);
+            //    string id = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_ID");
+            //    string pw = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_PW");
+
+
+            //    try
+            //    {
+            //        foreach (string path in remotePathList)
+            //        {
+            //            #region check permission     
+            //            if (!ConnectNetworkDrive(path, id, pw))
+            //            {
+            //                SetFail(ip);
+            //                Log($"[{ip}] _ Failed to set permission");
+            //                break;
+            //            }
+            //            #endregion
+
+            //            #region check directory
+            //            if (Directory.Exists(path))
+            //            {
+            //                remotePath = path;                            
+            //                Log($"[{ip}] _ set path : [{remotePath}] ");
+            //                await Task.Delay(10);
+            //                break;
+            //            }
+            //            #endregion
+            //        }
+            //        if (string.IsNullOrEmpty(remotePath))
+            //        {                        
+            //            Log($"[{ip}] _ Does not exist path",LogLevel.WARN);
+            //            System.Windows.MessageBox.Show($"[{ip}] _ Does not exist path");
+            //            SetFail(ip);
+            //            await Task.Delay(10);
+            //            continue;
+            //        }
+            //    }
+            //    catch
+            //    {
+            //        Log($"[{ip}] _ Does not exist path", LogLevel.ERROR);
+            //        System.Windows.MessageBox.Show($"[{ip}] _ Does not exist path");
+            //        await Task.Delay(1);
+            //        continue;
+            //    }
+            //    #endregion
+
+            //    #region set path(backup,source)
+            //    string remoteFolderPath = remotePath + "\\bin";
+            //    string remoteBackupPath = remotePath + "\\backup";
+            //    string remoteConfigPath = remotePath + "\\config";                
+            //    List<string> BackupPathList = new List<string>();
+
+            //    BackupPathList.Add(remoteFolderPath);
+            //    if (ProcessNameToCheck == "HDSInspector.exe") BackupPathList.Add(remoteConfigPath);
+
+            //    #endregion
+
+            //    #region Start Patch                
+
+            //    Debug.WriteLine($"[{ip}] 접근 중...");
+
+            //    try
+            //    {
+            //        await Patch(ip, BackupPathList, remoteBackupPath, remoteFolderPath);
+            //        if(PatchResult)
+            //        {                        
+            //            Log($"[{ip}] _ patch complete");
+            //            SetComplete(ip);
+            //            if (!ProcessStart(ip)) Log($"[{ip}] _  failed to run process", LogLevel.ERROR);
+            //            else Log($"[{ip}] _  success to run process");
+            //            await Task.Delay(50);
+            //        }
+            //        else
+            //        {                        
+            //            Log($"[{ip}] _ patch failed",LogLevel.WARN);
+            //            SetFail(ip);
+            //            await Task.Delay(50);
+            //        }                    
+            //        await Task.Delay(50);
+            //    }
+            //    catch (Exception ex)
+            //    {                    
+            //        Log($"[{ip}] _ Error occured : {ex.Message}",LogLevel.ERROR);
+            //        Debug.WriteLine($"[{ip}] 오류 발생: {ex.Message}");
+            //        SetFail(ip);
+            //        //ChangeCellColor(ip, Brushes.IndianRed);
+            //        await Task.Delay(10);
+            //        continue;
+            //    }
+            //    PatchResult = false;
+            //    #endregion
+            //}
+            #endregion
+
             foreach (string ip in IPAddresses)
             {
-                Log($"[{ip}] _ Try to access...");
-                lblIP.Content = ip;
-                pbstatusBar.Value = 0;
-                txtStatusBar.Text = 0.ToString("0.0") + "%";
-                
-                CellData cellData = CellDatas.FirstOrDefault(item => item.IP == ip);
-                var cell = GetCell(cellData.ROW, cellData.COLUMN);
-                ChangeCellColor(cellData.ROW, cellData.COLUMN, System.Windows.Media.Brushes.LimeGreen);
-                cell.Focus();
-                await Task.Delay(100);
+                // await semaphore.WaitAsync(); // 동시 작업 수 제한 시 사용
 
-                #region ping
-                if (!GetPingResult(ip))
+                patchTasks.Add(ProcessSingleIPAsync(ip, totalIPs, () =>
                 {
-                    //SetWarnning($"[{ip}] _ No response ");
-                    Log($"[{ip}] _ No response",LogLevel.ERROR);
-                    //System.Windows.MessageBox.Show($"No response {ip}");
-                    SetFail(ip);                    
-                    await Task.Delay(10);
-                    PatchResult = false;
-                    pgtotalcnt += ((double)1 / (double)(IPAddresses.Count))*100;
-                    pbtotalBar.Value = pgtotalcnt;
-                    txttotalBar.Text = pgtotalcnt.ToString("0.0") + "%";
-                    continue;
-                }
-                Log($"[{ip}] _ Ping success");
-                await Task.Delay(1);
-                #endregion
+                    // 전체 진행률 스레드 안전하게 업데이트
+                    Interlocked.Increment(ref completedIPs);
+                    double currentTotalProgress = ((double)completedIPs / totalIPs) * 100.0;
+                    Dispatcher.InvokeAsync(() =>
+                    {
+                        pbtotalBar.Value = currentTotalProgress;
+                        txttotalBar.Text = currentTotalProgress.ToString("0.0") + "%";
+                    });
+                    // semaphore.Release(); // 동시 작업 수 제한 시 사용
+                }));
+            }
 
-                string strPCtype = PCType; //"Main" vision
-                if (ModeType == "SII" && ProcessNameToCheck == "IS.exe") strPCtype += "\\IS";
-                string diskType = "D";
-                string remotePath = "";
+            await Task.WhenAll(patchTasks);
+
+            await Dispatcher.InvokeAsync(() => Log("All patching operations have been attempted."));
+            Debug.WriteLine("모든 작업이 완료되었습니다."); 
+        }
+
+        private async Task ProcessSingleIPAsync(string ip, int totalIPCount, System.Action onIpCompletedCallback)
+        {
+            string currentIp = ip;
+            bool ipPatchSuccess = false;
+
+            try
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    Log($"[{currentIp}] _ Try to access..."); //
+                                                              // lblIP.Content = currentIp; // 병렬 처리 시 의미가 모호할 수 있음
+                                                              // pbstatusBar.Value = 0; // 개별 IP 진행률 표시 방법 재고 필요
+                                                              // txtStatusBar.Text = "0.0%"; //
+
+                    CellData cellData = CellDatas.FirstOrDefault(item => item.IP == currentIp); //
+                    if (cellData != null)
+                    {
+                        ChangeCellColor(cellData.ROW, cellData.COLUMN, System.Windows.Media.Brushes.LimeGreen); //
+                     // GetCell(cellData.ROW, cellData.COLUMN)?.Focus(); // 포커싱은 UI를 혼란스럽게 할 수 있음
+                    }
+                });
+                await Task.Delay(100); //
+
+                if (!GetPingResult(currentIp)) //
+                {
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        Log($"[{currentIp}] _ No response", LogLevel.ERROR); //
+                        SetFail(currentIp); //
+                    });
+                    return;
+                }
+                await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _ Ping success")); //
+
+                // 경로 설정 및 연결 로직 (기존과 유사, 단 ConnectNetworkDrive는 스레드 안전하게 수정되었다고 가정)
+                // ... (ConnectNetworkDrive, Directory.Exists 등 호출 부분)
+                // PCType, ModeType 등 멤버 변수 사용 시, 병렬 작업 중 변경되지 않는다는 가정하에 사용
+                string strPCtype = PCType; // main, vision
+                if (ModeType == "SII" && ProcessNameToCheck == "IS.exe") strPCtype += "\\IS"; //
+                string diskType = "D"; //
+                string remotePath = ""; //
+               
                 string[] remotePathList =
                 {
                       $"\\\\{ip}\\{strPCtype.ToLower()}",                       // ip : main,vision
@@ -642,106 +841,183 @@ namespace AutoPatcher
                       $"\\\\{ip}\\{diskType}\\{strPCtype.ToLower()}",           // ip : D : main,vision
                       $"\\\\{ip}\\{diskType}\\{strPCtype}",                     // ip : D : Main,Vision
                       $"\\\\{ip}\\{diskType.ToLower()}\\{strPCtype.ToLower()}", // ip : d : main,vision
-                      $"\\\\{ip}\\{diskType.ToLower()}\\{strPCtype}",           // ip : d : Main,Vision 
+                      $"\\\\{ip}\\{diskType.ToLower()}\\{strPCtype}",           // ip : d : Main,Vision
                 };
-                #region Set path (d:main , D:main, d:Main, D:Main)
 
-                ResourceManager rscManager = new ResourceManager("AutoPatcher.Resource.UserInfo", typeof(MainWindow).Assembly);
-                string id = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_ID");
-                string pw = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_PW");
 
-                
-                try
+                ResourceManager rscManager = new ResourceManager("AutoPatcher.Resource.UserInfo", typeof(MainWindow).Assembly); //
+                string id = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_ID"); //
+                string pw = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_PW"); //
+
+                bool pathFound = false;
+                string establishedRemotePath = ""; // 최종적으로 사용될 경로
+
+                foreach (string pathAttempt in remotePathList) // remotePathList는 기존처럼 생성
                 {
-                    foreach (string path in remotePathList)
+                    // 1. 네트워크 드라이브 연결 시도
+                    bool connectionApiSuccess = ConnectNetworkDrive(pathAttempt, id, pw); //
+
+                    if (!connectionApiSuccess)
                     {
-                        #region check permission     
-                        if (!ConnectNetworkDrive(path, id, pw))
-                        {
-                            SetFail(ip);
-                            Log($"[{ip}] _ Failed to set permission");
-                            break;
-                        }
-                        #endregion
-
-                        #region check directory
-                        if (Directory.Exists(path))
-                        {
-                            remotePath = path;                            
-                            Log($"[{ip}] _ set path : [{remotePath}] ");
-                            await Task.Delay(10);
-                            break;
-                        }
-                        #endregion
-                    }
-                    if (string.IsNullOrEmpty(remotePath))
-                    {                        
-                        Log($"[{ip}] _ Does not exist path",LogLevel.WARN);
-                        System.Windows.MessageBox.Show($"[{ip}] _ Does not exist path");
-                        SetFail(ip);
-                        await Task.Delay(10);
-                        continue;
-                    }
-                }
-                catch
-                {
-                    Log($"[{ip}] _ Does not exist path", LogLevel.ERROR);
-                    System.Windows.MessageBox.Show($"[{ip}] _ Does not exist path");
-                    await Task.Delay(1);
-                    continue;
-                }
-                #endregion
-
-                #region set path(backup,source)
-                string remoteFolderPath = remotePath + "\\bin";
-                string remoteBackupPath = remotePath + "\\backup";
-                string remoteConfigPath = remotePath + "\\config";                
-                List<string> BackupPathList = new List<string>();
-
-                BackupPathList.Add(remoteFolderPath);
-                if (ProcessNameToCheck == "HDSInspector.exe") BackupPathList.Add(remoteConfigPath);
-
-                #endregion
-
-                #region Start Patch                
-
-                Debug.WriteLine($"[{ip}] 접근 중...");
-                
-                try
-                {
-                    await Patch(ip, BackupPathList, remoteBackupPath, remoteFolderPath);
-                    if(PatchResult)
-                    {                        
-                        Log($"[{ip}] _ patch complete");
-                        SetComplete(ip);
-                        if (!ProcessStart(ip)) Log($"[{ip}] _  failed to run process", LogLevel.ERROR);
-                        else Log($"[{ip}] _  success to run process");
-                        await Task.Delay(50);
+                        // WNetUseConnection API 호출이 명시적으로 성공하지 않았음을 로그로 남깁니다.
+                        // (예: 이미 연결됨, 다른 오류 등). 그러나 경로는 여전히 접근 가능할 수 있습니다.
+                        await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _ ConnectNetworkDrive API for '{pathAttempt}' reported an issue or no new connection was made. Proceeding to check path accessibility.", LogLevel.INFO));
                     }
                     else
-                    {                        
-                        Log($"[{ip}] _ patch failed",LogLevel.WARN);
-                        SetFail(ip);
-                        await Task.Delay(50);
-                    }                    
-                    await Task.Delay(50);
-                }
-                catch (Exception ex)
-                {                    
-                    Log($"[{ip}] _ Error occured : {ex.Message}",LogLevel.ERROR);
-                    Debug.WriteLine($"[{ip}] 오류 발생: {ex.Message}");
-                    SetFail(ip);
-                    //ChangeCellColor(ip, Brushes.IndianRed);
-                    await Task.Delay(10);
-                    continue;
-                }
-                PatchResult = false;
-                #endregion
-            }
+                    {
+                        await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _ ConnectNetworkDrive API for '{pathAttempt}' reported success."));
+                    }
 
-            Debug.WriteLine("모든 작업이 완료되었습니다.");
-            Console.ReadLine();
-            return;
+                    // 2. 경로 존재 유무 및 접근 가능성 확인 (중요)
+                    // ConnectNetworkDrive의 반환 값과 관계없이 실제 경로 접근을 시도합니다.
+                    try
+                    {
+                        if (Directory.Exists(pathAttempt))
+                        {
+                            establishedRemotePath = pathAttempt; // 접근 가능한 경로를 찾음
+                            await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _ Successfully accessed and set remote path: [{establishedRemotePath}]"));
+                            pathFound = true;
+                            break; // 유효한 경로를 찾았으므로 루프 종료
+                        }
+                        else
+                        {
+                            // 해당 경로가 존재하지 않거나 접근할 수 없음을 로그로 남깁니다.
+                            await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _ Path '{pathAttempt}' not found or not accessible.", LogLevel.INFO));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Directory.Exists 중 예외 발생 시 (네트워크 오류 등)
+                        await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _ Exception while checking Directory.Exists for '{pathAttempt}': {ex.Message}", LogLevel.WARN));
+                    }
+                }
+
+                if (!pathFound || string.IsNullOrEmpty(establishedRemotePath))
+                {
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        Log($"[{currentIp}] _ CRITICAL: No accessible remote path found after trying all candidates. Patching for this IP will be skipped.", LogLevel.ERROR);
+                        SetFail(currentIp); //
+                    });
+                    // onIpCompletedCallback는 ProcessSingleIPAsync의 finally 블록에서 호출되므로 여기서 return해도 문제없음
+                    return;
+                }
+
+                string remoteFolderPath = System.IO.Path.Combine(remotePath, "bin"); 
+                string remoteBackupPath = System.IO.Path.Combine(remotePath, "backup"); 
+                string remoteConfigPath = System.IO.Path.Combine(remotePath, "config");
+                List<string> backupPathList = new List<string> { remoteFolderPath }; 
+                if (ProcessNameToCheck == "HDSInspector.exe") backupPathList.Add(remoteConfigPath); 
+
+
+                // Patch 메서드를 호출 (PatchInternalAsync로 리팩토링 버전)
+                ipPatchSuccess = await PatchInternalAsync(currentIp, backupPathList, remoteBackupPath, remoteFolderPath, FilesToCheck, SourceDirectory, ProcessNameToCheck);
+
+                if (ipPatchSuccess)
+                {
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        Log($"[{currentIp}] _ patch complete"); //
+                        SetComplete(currentIp); //
+                    });
+                    if (!ProcessStart(currentIp)) //
+                        await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _  failed to run process", LogLevel.ERROR)); //
+                    else
+                        await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _  success to run process")); //
+                }
+                else
+                {
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        Log($"[{currentIp}] _ patch failed", LogLevel.WARN); //
+                        SetFail(currentIp); //
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    Log($"[{currentIp}] _ Error occurred: {ex.Message}", LogLevel.ERROR); //
+                    SetFail(currentIp); //
+                });
+            }
+            finally
+            {
+                onIpCompletedCallback?.Invoke();
+            }
+        }
+
+        private async Task<bool> PatchInternalAsync(string ip, List<string> backupPathList, string remoteBackupPath, string remoteFolderPath, List<string> filesToCheck, string sourceDirectory, string processNameToCheck)
+        {
+            try
+            {
+                // 프로그램 실행 중 확인 및 종료 대기 (WaitForProcessToExitAsync로 변경)
+                if (IsProgramRunning(ip, processNameToCheck)) //
+                {
+                    await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ {processNameToCheck} is running : Waiting for exit ...")); //
+                    await WaitForProcessToExitAsync(ip, processNameToCheck, 120); // 수정된 메서드 호출
+                }
+                else
+                {
+                    await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ [{processNameToCheck}] is not running. Try to patch..")); //
+                }
+
+                // 백업 (CheckBackupFolderAsync로 변경)
+                foreach (string strBackUpPath in backupPathList)
+                {
+                    await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ [{strBackUpPath}] back up..")); //
+                    if (!await CheckBackupFolderAsync(ip, strBackUpPath, remoteBackupPath)) // 수정된 메서드 호출
+                    {
+                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ {strBackUpPath} backup failed or path doesn't exist", LogLevel.ERROR)); //
+                        return false;
+                    }
+                    await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ [{strBackUpPath}] Backup successfully!")); //
+                }
+
+                // 폴더 생성
+                foreach (string folder in FoldersToCheck) // FoldersToCheck는 멤버 변수, 안정적이어야 함
+                {
+                    string fullFolderPath = System.IO.Path.Combine(remoteFolderPath, folder);
+                    if (!Directory.Exists(fullFolderPath))
+                    {
+                        Directory.CreateDirectory(fullFolderPath); // 파일 시스템 작업, 예외 발생 가능성
+                    }
+                }
+
+                // 파일 업데이트 (ReplaceFileAsync로 변경)
+                int cnt = 0; //
+                foreach (string fileName in filesToCheck) // filesToCheck는 파라미터로 전달
+                {
+                    cnt++; //
+                    string localFilePath = System.IO.Path.Combine(sourceDirectory, fileName); //
+                    string remoteFilePath = System.IO.Path.Combine(remoteFolderPath, fileName); //
+
+                    bool updateNeeded = !System.IO.File.Exists(remoteFilePath) || IsFileUpdateNeeded(localFilePath, remoteFilePath); //
+
+                    if (updateNeeded)
+                    {
+                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Updating: {fileName}."));
+                        await ReplaceFileAsync(ip, remoteFolderPath, fileName, localFilePath); // 수정된 메서드 호출
+                    }
+                    else
+                    {
+                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Skip (up-to-date): {fileName}")); //
+                    }
+                    // 개별 파일 진행률 업데이트는 전체 진행률 계산 방식 변경으로 인해 여기서는 제거하거나 다르게 처리
+                    // double currentIpFileProgress = (((double)cnt / (double)filesToCheck.Count)) * 100;
+                    // await Dispatcher.InvokeAsync(() => {
+                    //     // pbstatusBar.Value = currentIpFileProgress; //
+                    //     // txtStatusBar.Text = currentIpFileProgress.ToString("0.0") + "%"; //
+                    // });
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await Dispatcher.InvokeAsync(() => Log($"[{ip}] Error in PatchInternalAsync: {ex.Message}", LogLevel.ERROR)); //
+                return false;
+            }
         }
 
         bool ProcessStart(string ip)
@@ -896,6 +1172,24 @@ namespace AutoPatcher
             }
         }
 
+        async Task WaitForProcessToExitAsync(string ip, string processName, int timeoutSeconds) //
+        {
+            int waitedSeconds = 0; //
+                                   // IsProgramRunning은 WMI를 사용하므로 블로킹 호출일 수 있음. Task.Run으로 감싸는 것을 고려할 수 있으나,
+                                   // 여기서는 빈번한 호출이 아니므로 일단 그대로 둠.
+            while (IsProgramRunning(ip, processName)) //
+            {
+                if (waitedSeconds >= timeoutSeconds) //
+                {
+                    await Dispatcher.InvokeAsync(() => Log($"[{ip}] TimeOut: {processName} timeout.", LogLevel.ERROR)); //
+                    break;
+                }
+                await Dispatcher.InvokeAsync(() => Log($"[{ip}] {processName} is running... waiting {waitedSeconds + 1}s..")); //
+                await Task.Delay(1000); // 비동기 지연
+                waitedSeconds++; //
+            }
+        }
+
         // 파일 업데이트 필요 여부 확인
         bool IsFileUpdateNeeded(string localFilePath, string remoteFilePath)
         {
@@ -931,6 +1225,29 @@ namespace AutoPatcher
             System.IO.File.Copy(localFilePath, remoteFilePath);                        
             Log($"[{ip}] _ Updated : {fileName}");
             Debug.WriteLine($"[{remoteFolderPath}] 업데이트 완료: {fileName}");
+        }
+
+        public async Task ReplaceFileAsync(string ip, string remoteFolderPath, string fileName, string localFilePath) //
+        {
+            string remoteFilePath = System.IO.Path.Combine(remoteFolderPath, fileName); //
+            try
+            {
+                // 동기 파일 I/O 작업을 Task.Run으로 실행
+                await Task.Run(() =>
+                {
+                    if (System.IO.File.Exists(remoteFilePath)) // 원격 파일 존재하면 삭제
+                    {
+                        System.IO.File.Delete(remoteFilePath); //
+                    }
+                    System.IO.File.Copy(localFilePath, remoteFilePath); //
+                });
+                await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Updated : {fileName}")); //
+            }
+            catch (Exception ex)
+            {
+                await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Failed to replace {fileName}: {ex.Message}", LogLevel.ERROR));
+                throw; // 예외를 다시 던져서 PatchInternalAsync에서 처리하도록 함
+            }
         }
 
         #endregion
@@ -1126,6 +1443,27 @@ namespace AutoPatcher
                 return false;
             }
             return true;
+        }
+
+        public async Task<bool> CheckBackupFolderAsync(string ip, string src, string des) //
+        {
+            // ... (파라미터 유효성 검사 및 로그) ...
+            try
+            {
+                if (!Directory.Exists(src)) //
+                {
+                    await Dispatcher.InvokeAsync(() => Log($"[{ip}] Source backup dir {src} doesn't exist", LogLevel.ERROR)); //
+                    return false;
+                }
+                // BackupDirectory는 동기 I/O 작업을 포함하므로 Task.Run으로 실행
+                await Task.Run(() => BackupDirectory(src, des)); //
+                return true;
+            }
+            catch (Exception ex)
+            {
+                await Dispatcher.InvokeAsync(() => Log($"[{ip}] Error during backup of {src}: {ex.Message}", LogLevel.ERROR)); //
+                return false;
+            }
         }
 
         private void BackupDirectory(string src, string dest)
