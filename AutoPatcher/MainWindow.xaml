@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:AutoPatcher"
         mc:Ignorable="d"
-        Title="HDS Auto Patcher [ Version 1.0.0 ]" Height="950" Width="1280">
+        Title="HDS Auto Patcher [ Version 1.1.0 병렬 ]" Height="950" Width="1280">
     <Window.Resources>
         <!-- Grouping Data by Group -->
         <CollectionViewSource x:Key="GroupedData" Source="{Binding DataGridItems}">
@@ -15,7 +15,11 @@
         </CollectionViewSource>
     </Window.Resources>
     <Grid>
-        <Grid Background="#1B2533">            
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="89*"/>
+            <ColumnDefinition Width="551*"/>
+        </Grid.ColumnDefinitions>
+        <Grid Background="#1B2533" Grid.ColumnSpan="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="30"/>
                 <RowDefinition Height="3*"/>
@@ -27,6 +31,7 @@
             <Grid Grid.Row="0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="10,0,10,0" HorizontalAlignment="Left" Height="Auto" >
                     <RadioButton x:Name="rdLF"  FontWeight="Bold" Foreground="AntiqueWhite"  FontSize="15" VerticalContentAlignment="Center" Content="LF"  Margin="0,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[0],Mode=TwoWay}"></RadioButton>
@@ -34,6 +39,7 @@
                     <RadioButton x:Name="rdBGA" FontWeight="Bold" Foreground="AntiqueWhite"  FontSize="15" VerticalContentAlignment="Center" Content="BGA" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[2],Mode=TwoWay}"></RadioButton>
                     <RadioButton x:Name="rdCOB" FontWeight="Bold" Foreground="AntiqueWhite"  FontSize="15" VerticalContentAlignment="Center" Content="COB" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[3],Mode=TwoWay}"></RadioButton>
                 </StackPanel>
+                <Label Grid.Column="1" x:Name="lblList" Content="-" FontWeight="Bold" Foreground="AntiqueWhite"  FontSize="15" VerticalContentAlignment="Center" VerticalAlignment="Center" HorizontalContentAlignment="Center"/>
             </Grid>
             <Grid Grid.Row="1">
                 <DataGrid x:Name                        ="DataGrid"
@@ -52,7 +58,7 @@
                             <Setter Property="HorizontalGridLinesBrush" Value="Black"></Setter>
                             <Setter Property="VerticalGridLinesBrush" Value="Black"></Setter>
                             <Setter Property="Background" Value="Gray"/>
-                        </Style>                        
+                        </Style>
                         <Style TargetType="DataGridColumnHeader">
                             <Setter Property="TextBlock.TextAlignment" Value="Center"/>
                             <Setter Property="Foreground" Value="Black"></Setter>
@@ -130,17 +136,17 @@
                                 <Style TargetType="DataGridColumnHeader">
                                     <Setter Property="Background" Value="Gray"/>
                                     <Setter Property="Foreground" Value="AntiqueWhite"/>
-                                    <Setter Property="FontWeight" Value="Bold"/>                                    
+                                    <Setter Property="FontWeight" Value="Bold"/>
                                 </Style>
                             </DataGridTemplateColumn.HeaderStyle>
-                            <DataGridTemplateColumn.Header>                                
+                            <DataGridTemplateColumn.Header>
                                 <StackPanel Orientation="Horizontal">
                                     <CheckBox  VerticalAlignment="Center" Margin="1,0,0,0" x:Name="chkMainAll" Checked="AllCheckbox_checked" Unchecked="AllCheckbox_checked"/>
                                     <TextBlock VerticalAlignment="Center" Margin="3,0,0,0" Text="Main"/>
                                 </StackPanel>
                             </DataGridTemplateColumn.Header>
-                            <DataGridTemplateColumn.CellTemplate>                                
-                                <DataTemplate>                                                       
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
                                     <StackPanel x:Name="StackPanel" Orientation="Horizontal">
                                         <CheckBox IsChecked="{Binding MainSelected}" Name="chkMain" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked" ></CheckBox>
                                         <TextBlock Foreground="AntiqueWhite" FontWeight="Bold" Text="{Binding PC1}" Width="120"></TextBlock>
@@ -149,7 +155,7 @@
                             </DataGridTemplateColumn.CellTemplate>
                             <DataGridTemplateColumn.CellStyle>
                                 <Style TargetType="DataGridCell">
-                                    <Setter Property="Background" Value="Gray"/>                                    
+                                    <Setter Property="Background" Value="Gray"/>
                                 </Style>
                             </DataGridTemplateColumn.CellStyle>
                         </DataGridTemplateColumn>
@@ -343,6 +349,12 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="5,5,5,5" Height="Auto">
                     <RadioButton Name="rdMain"  FontWeight="Bold" Foreground="AntiqueWhite" Checked="Radiobutton_Checked" GroupName="PCType"  VerticalContentAlignment="Center" FontSize="15" Content="Main" Margin="5,0,0,0"></RadioButton>
                     <RadioButton Name="rdVision" FontWeight="Bold" Foreground="AntiqueWhite" Checked="Radiobutton_Checked" GroupName="PCType"  VerticalContentAlignment="Center" FontSize="15" Content="Vision" Margin="5,0,0,0"></RadioButton>
+                    <RadioButton Name="rdEtcFile" FontWeight="Bold" Foreground="AntiqueWhite" Checked="Radiobutton_Checked" GroupName="PCType"  VerticalContentAlignment="Center" FontSize="15" Content="ETC" Margin="5,0,0,0"></RadioButton>
+                    <ComboBox x:Name="cmbFileType" Width="100" VerticalContentAlignment="Center" FontSize="15"  Margin="10,0,0,0" Visibility="Hidden">
+                        <ComboBoxItem Content="File" TabIndex="0" Selected="cmbType_Selected"/>
+                        <ComboBoxItem Content="Folder" TabIndex="1" Selected="cmbType_Selected"/>
+                    </ComboBox>
+                    
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left" Margin="5,5,5,5" Height="Auto">
                     <Label Foreground="AntiqueWhite" FontWeight="Bold" FontSize="15" Content="Process :" Margin="10,0,0,0" VerticalAlignment="Center"></Label>
@@ -350,7 +362,7 @@
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="5,5,5,5" Height="Auto">
                     <Label Foreground="AntiqueWhite" FontSize="15" FontWeight="Bold" Content="Status" Name="lblIP" HorizontalAlignment="Center" HorizontalContentAlignment="Center"></Label>
-                    <Label  FontSize="15" Content="-" Margin="1,0,0,0" Name="lblStatus" Visibility="Hidden"></Label>                    
+                    <Label  FontSize="15" Content="-" Margin="1,0,0,0" Name="lblStatus" Visibility="Hidden"></Label>
                 </StackPanel>
                 <Grid Grid.Row="2" Grid.Column="3">
                     <Grid.RowDefinitions>
@@ -360,12 +372,12 @@
                     <ProgressBar Grid.Row="0" Grid.Column="3"  x:Name="pbstatusBar"  VerticalAlignment="Center" Minimum="0" Maximum="100" Margin="0,0,5,0" Height="30" Value="10" Visibility="Hidden"/>
                     <TextBlock   Grid.Row="0" Grid.Column="3" FontSize="15" x:Name="txtStatusBar" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,5,0" Text="0.0%" Visibility="Hidden"/>
 
-                    <ProgressBar Grid.Row="1" Grid.Column="3"  x:Name="pbtotalBar"  VerticalAlignment="Center" Minimum="0" Maximum="100" Margin="0,0,5,0" Height="30" Value="20" Visibility="Hidden"/>
-                    <TextBlock   Grid.Row="1" Grid.Column="3" FontSize="15" x:Name="txttotalBar" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,5,0" Text="0.0%" Visibility="Hidden"/>
+                    <ProgressBar Grid.Row="0" Grid.Column="3" Grid.RowSpan="2" x:Name="pbtotalBar"  VerticalAlignment="Center" Minimum="0" Maximum="100" Margin="0,0,5,0" Height="30" Value="20" Visibility="Hidden"/>
+                    <TextBlock   Grid.Row="0" Grid.Column="3" Grid.RowSpan="2 " FontSize="15" x:Name="txttotalBar" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,5,0" Text="0.0%" Visibility="Hidden"/>
                 </Grid>
-                
-                    
-                
+
+
+
             </Grid>
             <Grid Grid.Row="3">
                 <Grid.ColumnDefinitions>

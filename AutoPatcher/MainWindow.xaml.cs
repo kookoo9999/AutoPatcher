@@ -281,8 +281,8 @@ namespace AutoPatcher
 
             Dispatcher.InvokeAsync(() => // UI 스레드에서 실행 보장
             {
-                LogBox.Inlines.Add(run); //
-                LogScroll.ScrollToEnd(); //
+                LogBox.Inlines.Add(run); 
+                LogScroll.ScrollToEnd(); 
             });
         }
 
@@ -300,6 +300,7 @@ namespace AutoPatcher
 
         public void SetComplete(string ip)
         {
+            IPAddresses.Remove(ip);
             CellData targetCell = CellDatas.FirstOrDefault(item => item.IP == ip);
             ChangeCellColor(targetCell.ROW, targetCell.COLUMN, System.Windows.Media.Brushes.DeepSkyBlue);            
             //ChangeCellColor(ip, Brushes.LimeGreen);
@@ -307,6 +308,7 @@ namespace AutoPatcher
 
         public void SetFail(string ip)
         {
+            //IPAddresses.Remove(ip);
             CellData targetCell = CellDatas.FirstOrDefault(item => item.IP == ip);
             ChangeCellColor(targetCell.ROW, targetCell.COLUMN, System.Windows.Media.Brushes.IndianRed);
             //ChangeCellColor(ip, Brushes.IndianRed);
@@ -404,18 +406,21 @@ namespace AutoPatcher
 
                     if (string.IsNullOrEmpty(group_name)) { group_name = temp_name; }
                     else { temp_name = group_name; }
-
-                    DataGridItems.Add(new RowData
+                    System.Action action = delegate
                     {
-                        Group          = group_name,                        
-                        InspectionUnit = Convert.ToString(usedRange.Cells[row, 3]?.Value),
-                        PC1            = Convert.ToString(usedRange.Cells[row, 4]?.Value),
-                        PC2            = Convert.ToString(usedRange.Cells[row, 5]?.Value),
-                        PC3            = Convert.ToString(usedRange.Cells[row, 6]?.Value),
-                        PC4            = Convert.ToString(usedRange.Cells[row, 7]?.Value),
-                        PC5            = Convert.ToString(usedRange.Cells[row, 8]?.Value),
-                        PC6            = Convert.ToString(usedRange.Cells[row, 9]?.Value)
-                    });
+                        DataGridItems.Add(new RowData
+                        {
+                            Group = group_name,
+                            InspectionUnit = Convert.ToString(usedRange.Cells[row, 3]?.Value),
+                            PC1 = Convert.ToString(usedRange.Cells[row, 4]?.Value),
+                            PC2 = Convert.ToString(usedRange.Cells[row, 5]?.Value),
+                            PC3 = Convert.ToString(usedRange.Cells[row, 6]?.Value),
+                            PC4 = Convert.ToString(usedRange.Cells[row, 7]?.Value),
+                            PC5 = Convert.ToString(usedRange.Cells[row, 8]?.Value),
+                            PC6 = Convert.ToString(usedRange.Cells[row, 9]?.Value)
+                        });
+                    };
+                    this.Dispatcher.Invoke(action);
                 }
             }
             catch (Exception ex)
@@ -610,7 +615,7 @@ namespace AutoPatcher
 
             // UI 요소 초기화
             await Dispatcher.InvokeAsync(() => {
-                pbstatusBar.Visibility = Visibility.Visible; //
+                //pbstatusBar.Visibility = Visibility.Visible; //
                 txtStatusBar.Visibility = Visibility.Visible; //
                 pbtotalBar.Visibility = Visibility.Visible; //
                 txttotalBar.Visibility = Visibility.Visible; //
@@ -788,6 +793,8 @@ namespace AutoPatcher
 
             await Task.WhenAll(patchTasks);
 
+            await Dispatcher.InvokeAsync(() => lblList.Content = $"Number of left machine : {IPAddresses.Count}");
+            
             await Dispatcher.InvokeAsync(() => Log("All patching operations have been attempted."));
             Debug.WriteLine("모든 작업이 완료되었습니다."); 
         }
@@ -850,7 +857,6 @@ namespace AutoPatcher
                 string pw = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_PW"); //
 
                 bool pathFound = false;
-                string establishedRemotePath = ""; // 최종적으로 사용될 경로
 
                 foreach (string pathAttempt in remotePathList) // remotePathList는 기존처럼 생성
                 {
@@ -868,14 +874,14 @@ namespace AutoPatcher
                         await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _ ConnectNetworkDrive API for '{pathAttempt}' reported success."));
                     }
 
-                    // 2. 경로 존재 유무 및 접근 가능성 확인 (중요)
-                    // ConnectNetworkDrive의 반환 값과 관계없이 실제 경로 접근을 시도합니다.
+                    // 2. 경로 존재 유무 및 접근 가능성 확인 
+                    // ConnectNetworkDrive의 반환 값과 관계없이 실제 경로 접근을 시도
                     try
                     {
                         if (Directory.Exists(pathAttempt))
                         {
-                            establishedRemotePath = pathAttempt; // 접근 가능한 경로를 찾음
-                            await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _ Successfully accessed and set remote path: [{establishedRemotePath}]"));
+                            remotePath = pathAttempt; // 접근 가능한 경로를 찾음
+                            await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _ Successfully accessed and set remote path: [{remotePath}]"));
                             pathFound = true;
                             break; // 유효한 경로를 찾았으므로 루프 종료
                         }
@@ -892,7 +898,7 @@ namespace AutoPatcher
                     }
                 }
 
-                if (!pathFound || string.IsNullOrEmpty(establishedRemotePath))
+                if (!pathFound || string.IsNullOrEmpty(remotePath))
                 {
                     await Dispatcher.InvokeAsync(() =>
                     {
@@ -933,6 +939,60 @@ namespace AutoPatcher
                         SetFail(currentIp); //
                     });
                 }
+
+                #region 체크박스 해제 로직 추가
+                CellData cellInfoForUncheck = CellDatas.FirstOrDefault(item => item.IP == currentIp);
+                if (cellInfoForUncheck != null)
+                {
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        // DataGridItems 컬렉션과 RowData 인덱스의 유효성 확인
+                        if (cellInfoForUncheck.ROW >= 0 && cellInfoForUncheck.ROW < DataGridItems.Count)
+                        {
+                            RowData rowDataItem = DataGridItems[cellInfoForUncheck.ROW];
+
+                            // RowData 객체 내에서 현재 IP와 일치하는 PC 속성을 찾아 해당 Selected 플래그를 false로 설정
+                            if (rowDataItem.PC1 == currentIp)
+                            {
+                                rowDataItem.MainSelected = false;
+                            }
+                            else if (rowDataItem.PC2 == currentIp)
+                            {
+                                rowDataItem.V1Selected = false;
+                            }
+                            else if (rowDataItem.PC3 == currentIp)
+                            {
+                                rowDataItem.V2Selected = false;
+                            }
+                            else if (rowDataItem.PC4 == currentIp)
+                            {
+                                rowDataItem.V3Selected = false;
+                            }
+                            else if (rowDataItem.PC5 == currentIp)
+                            {
+                                rowDataItem.V4Selected = false;
+                            }
+                            else if (rowDataItem.PC6 == currentIp)
+                            {
+                                rowDataItem.V5Selected = false;
+                            }
+                            else
+                            {
+                                // 만약 RowData 내에서 해당 IP를 가진 PC 속성을 찾지 못한 경우 (데이터 불일치 등)
+                                Log($"[{currentIp}] Could not find matching PC property in RowData to uncheck checkbox for IP {currentIp} in row {cellInfoForUncheck.ROW}.", LogLevel.WARN);
+                            }
+                        }
+                        else
+                        {
+                            Log($"[{currentIp}] Invalid row index {cellInfoForUncheck.ROW} for IP {currentIp} when trying to uncheck checkbox.", LogLevel.WARN);
+                        }
+                    });
+                }
+                else
+                {
+                    Log($"[{currentIp}] Could not find CellData for IP {currentIp} to uncheck checkbox.", LogLevel.WARN);
+                }
+                #endregion
             }
             catch (Exception ex)
             {
@@ -1622,11 +1682,15 @@ namespace AutoPatcher
             {
                 if (dlg.CheckFileExists == true)
                 {
-                    Log($"Loading...{dlg.FileName}");                                
-                    ExcelPath = dlg.FileName;                    
-                    LoadExcelData(dlg.FileName);
-                    lblCurExcel.Content = dlg.FileName;
-                    Log($"Loaded machine list : {ModeType}");                                  
+                    System.Action action = delegate
+                    {
+                        Log($"Loading...{dlg.FileName}");
+                        ExcelPath = dlg.FileName;
+                        LoadExcelData(dlg.FileName);
+                        lblCurExcel.Content = dlg.FileName;
+                        Log($"Loaded machine list : {ModeType}");
+                    };
+                    this.Dispatcher.Invoke(action);
                 }
             }
         }
@@ -1813,6 +1877,11 @@ namespace AutoPatcher
                     CellDatas.Remove(removeItem);
                 }
             }
+            System.Action action = delegate
+            {
+                lblList.Content = $"Number of selected machine : {IPAddresses.Count}";
+            };            
+            this.Dispatcher.Invoke(action);
         }
 
         private void AllCheckbox_checked(object sender, RoutedEventArgs e)
@@ -1964,6 +2033,7 @@ namespace AutoPatcher
                 }
             }
             #endregion
+
             #region PC Type(Main,Vision)
             else if (btn.GroupName.Contains("PCType"))
             {
@@ -1998,9 +2068,36 @@ namespace AutoPatcher
                     ProcessNameToCheck = "IS.exe";
                     lblProcName.Content = ProcessNameToCheck;
                 }
+
+                #region 기타파일
+                else if (btn.Name.Contains("Etc"))
+                {
+                    PCType = "etc";
+                    ProcessNameToCheck = "etc";
+                    lblProcName.Content = ProcessNameToCheck;
+                    cmbFileType.Visibility = Visibility.Visible;
+                }
+                #endregion
                 Log($"{PCType}_{ProcessNameToCheck} selected ");
             }
             #endregion
+
+            
+            
+        }
+
+        private void cmbType_Selected(object sender,RoutedEventArgs e)
+        {
+            ComboBoxItem item = sender as ComboBoxItem;
+            bool isFile = (item.TabIndex == 0) ? true : false;
+            if(isFile)
+            {
+                
+            }
+            else
+            {
+
+            }
         }
 
         private void chkMainAll_Checked(object sender, RoutedEventArgs e)
