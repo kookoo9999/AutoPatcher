@@ -1245,7 +1245,7 @@ namespace AutoPatcher
                     break;
                 }
                 await Dispatcher.InvokeAsync(() => Log($"[{ip}] {processName} is running... waiting {waitedSeconds + 1}s..")); //
-                await Task.Delay(1000); // 비동기 지연
+                await Task.Delay(100); // 비동기 지연
                 waitedSeconds++; //
             }
         }
