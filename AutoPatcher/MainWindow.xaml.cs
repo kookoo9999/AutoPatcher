@@ -917,7 +917,7 @@ namespace AutoPatcher
 
 
                 // Patch 메서드를 호출 (PatchInternalAsync로 리팩토링 버전)
-                ipPatchSuccess = await PatchInternalAsync(currentIp, backupPathList, remoteBackupPath, remoteFolderPath, FilesToCheck, SourceDirectory, ProcessNameToCheck);
+                ipPatchSuccess = await PatchInternalAsync(currentIp, backupPathList, remoteBackupPath, remotePath, FilesToCheck, SourceDirectory, ProcessNameToCheck);
 
                 if (ipPatchSuccess)
                 {
@@ -1008,42 +1008,50 @@ namespace AutoPatcher
             }
         }
 
-        private async Task<bool> PatchInternalAsync(string ip, List<string> backupPathList, string remoteBackupPath, string remoteFolderPath, List<string> filesToCheck, string sourceDirectory, string processNameToCheck)
+        private async Task<bool> PatchInternalAsync(string ip, List<string> backupPathList, string remoteBackupPath, string remoteFolderPath, List<string> filesToCheck, string sourceDirectory, string processNameToCheck , bool bDirectPatch = false)
         {
             try
             {
-                // 프로그램 실행 중 확인 및 종료 대기 (WaitForProcessToExitAsync로 변경)
-                if (IsProgramRunning(ip, processNameToCheck)) //
+                remoteFolderPath = (bDirectPatch) ? 
+                    System.IO.Path.Combine(remoteFolderPath, "bin") :
+                    System.IO.Path.Combine(remoteFolderPath, "temp_update"); // 직접 패치 여부에 따라 백업 경로 설정
+                // updater 사용않고 바로 직접패치 일경우
+                // process 체크 후 bin,config 백업
+                if (bDirectPatch)
                 {
-                    await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ {processNameToCheck} is running : Waiting for exit ...")); //
-                    await WaitForProcessToExitAsync(ip, processNameToCheck, 120); // 수정된 메서드 호출
-                }
-                else
-                {
-                    await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ [{processNameToCheck}] is not running. Try to patch..")); //
-                }
-
-                // 백업 (CheckBackupFolderAsync로 변경)
-                foreach (string strBackUpPath in backupPathList)
-                {
-                    await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ [{strBackUpPath}] back up..")); //
-                    if (!await CheckBackupFolderAsync(ip, strBackUpPath, remoteBackupPath)) // 수정된 메서드 호출
+                    // 프로그램 실행 중 확인 및 종료 대기 (WaitForProcessToExitAsync로 변경)
+                    if (IsProgramRunning(ip, processNameToCheck)) //
                     {
-                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ {strBackUpPath} backup failed or path doesn't exist", LogLevel.ERROR)); //
-                        return false;
+                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ {processNameToCheck} is running : Waiting for exit ...")); //
+                        await WaitForProcessToExitAsync(ip, processNameToCheck, 120); // 수정된 메서드 호출
                     }
-                    await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ [{strBackUpPath}] Backup successfully!")); //
-                }
-
-                // 폴더 생성
-                foreach (string folder in FoldersToCheck) // FoldersToCheck는 멤버 변수, 안정적이어야 함
-                {
-                    string fullFolderPath = System.IO.Path.Combine(remoteFolderPath, folder);
-                    if (!Directory.Exists(fullFolderPath))
+                    else
                     {
-                        Directory.CreateDirectory(fullFolderPath); // 파일 시스템 작업, 예외 발생 가능성
+                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ [{processNameToCheck}] is not running. Try to patch..")); //
                     }
-                }
+
+                    // 백업 (CheckBackupFolderAsync로 변경)
+                    foreach (string strBackUpPath in backupPathList)
+                    {
+                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ [{strBackUpPath}] back up..")); //
+                        if (!await CheckBackupFolderAsync(ip, strBackUpPath, remoteBackupPath)) // 수정된 메서드 호출
+                        {
+                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ {strBackUpPath} backup failed or path doesn't exist", LogLevel.ERROR)); //
+                            return false;
+                        }
+                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ [{strBackUpPath}] Backup successfully!")); //
+                    }
+
+                    // 폴더 생성
+                    foreach (string folder in FoldersToCheck) // FoldersToCheck는 멤버 변수, 안정적이어야 함
+                    {
+                        string fullFolderPath = System.IO.Path.Combine(remoteFolderPath, folder);
+                        if (!Directory.Exists(fullFolderPath))
+                        {
+                            Directory.CreateDirectory(fullFolderPath); // 파일 시스템 작업, 예외 발생 가능성
+                        }
+                    }
+                }                
 
                 // 파일 업데이트 (ReplaceFileAsync로 변경)
                 int cnt = 0; //
