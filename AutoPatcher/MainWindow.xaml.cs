@@ -1051,7 +1051,17 @@ namespace AutoPatcher
                             Directory.CreateDirectory(fullFolderPath); // 파일 시스템 작업, 예외 발생 가능성
                         }
                     }
-                }                
+                }
+
+                // 폴더 생성
+                foreach (string folder in FoldersToCheck) // FoldersToCheck는 멤버 변수, 안정적이어야 함
+                {
+                    string fullFolderPath = System.IO.Path.Combine(remoteFolderPath, folder);
+                    if (!Directory.Exists(fullFolderPath))
+                    {
+                        Directory.CreateDirectory(fullFolderPath); // 파일 시스템 작업, 예외 발생 가능성
+                    }
+                }
 
                 // 파일 업데이트 (ReplaceFileAsync로 변경)
                 int cnt = 0; //
