@@ -49,6 +49,14 @@ namespace AutoPatcher
     {
         #region member
 
+        private bool _UseDirectPatch = false;
+        public bool UseDirectPatch
+        {
+            get { return _UseDirectPatch; }
+            set { _UseDirectPatch = value; }
+        }
+
+
         private bool _PatchResult;
         public bool PatchResult
         {
@@ -917,7 +925,7 @@ namespace AutoPatcher
 
 
                 // Patch 메서드를 호출 (PatchInternalAsync로 리팩토링 버전)
-                ipPatchSuccess = await PatchInternalAsync(currentIp, backupPathList, remoteBackupPath, remotePath, FilesToCheck, SourceDirectory, ProcessNameToCheck);
+                ipPatchSuccess = await PatchInternalAsync(currentIp, backupPathList, remoteBackupPath, remotePath, FilesToCheck, SourceDirectory, ProcessNameToCheck , UseDirectPatch);
 
                 if (ipPatchSuccess)
                 {
@@ -1050,6 +1058,15 @@ namespace AutoPatcher
                         {
                             Directory.CreateDirectory(fullFolderPath); // 파일 시스템 작업, 예외 발생 가능성
                         }
+                    }
+                }
+
+                // temp_update 폴더 생성
+                if (!bDirectPatch)
+                {
+                    if (!Directory.Exists(remoteFolderPath))
+                    {
+                        Directory.CreateDirectory(remoteFolderPath); // 파일 시스템 작업, 예외 발생 가능성
                     }
                 }
 
@@ -1954,6 +1971,12 @@ namespace AutoPatcher
 
         }
 
+        private void DirectCheckbox_checked(object sender, RoutedEventArgs e)
+        {
+            var checkBox = sender as System.Windows.Controls.CheckBox;
+            UseDirectPatch = checkBox.IsChecked == true;
+        }
+
         private void AllCheckbox_unchecked(object sender, RoutedEventArgs e)
         {
             var checkBox = sender as System.Windows.Controls.CheckBox;
@@ -2116,6 +2139,57 @@ namespace AutoPatcher
             {
 
             }
+        }
+
+        private void btnSetSchTask_Click(object sender, RoutedEventArgs e)
+        {
+            ProcessStartInfo si = new ProcessStartInfo();
+            si.FileName = "schtasks.exe";
+            si.UseShellExecute = false;
+            si.RedirectStandardInput = true;
+            Process run = new Process();
+            string ip = "";
+            string path = "";
+            string diskType = "D";
+            string strPCtype = PCType;
+            try
+            {
+                for (int i = 0; i < IPAddresses.Count; i++)
+                {
+                    {
+                        ip = IPAddresses[i];
+                        string[] remotePathList =
+                        {
+                            $"\\\\{ip}\\{strPCtype.ToLower()}",                       // ip : main,vision
+                            $"\\\\{ip}\\{strPCtype}",                                 // ip : Main,Vision
+                            $"\\\\{ip}\\{diskType}\\{strPCtype.ToLower()}",           // ip : D : main,vision
+                            $"\\\\{ip}\\{diskType}\\{strPCtype}",                     // ip : D : Main,Vision
+                            $"\\\\{ip}\\{diskType.ToLower()}\\{strPCtype.ToLower()}", // ip : d : main,vision
+                            $"\\\\{ip}\\{diskType.ToLower()}\\{strPCtype}",           // ip : d : Main,Vision
+                        };
+                        foreach(string rpath in remotePathList)
+                        {
+                            if (Directory.Exists(rpath))
+                            {
+                                path = rpath;
+                                 break;
+                            }
+                        }
+                        Directory.CreateDirectory(path+"\\temp_update");
+                        // isupdater 등록
+                        si.Arguments = string.Format($"/create /s {IPAddresses[i]} /u elf /p vision /tn isupdater /tr D:\\vision\\temp_update\\Updater.exe /sc ONCE /sd 2025/06/01 /st 00:00 /f");
+                        run.StartInfo = si;
+                        run.Start();
+                        Log($"Registered .. {ip}");
+                        Thread.Sleep(500);
+                    }
+                }
+            }
+            catch
+            {
+                Log($"Failed to register task on {ip}", LogLevel.ERROR);
+            }
+            
         }
 
         private void chkMainAll_Checked(object sender, RoutedEventArgs e)

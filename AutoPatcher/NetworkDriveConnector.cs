@@ -34,11 +34,14 @@ namespace Common
             ref int IpBufferSize,
             out uint IpResult);
 
-        [DllImport("mpr.dll", EntryPoint = "WNetUseConnection2", CharSet = CharSet.Auto)]
-        public static extern int WNetUseConnection2A(string IpName, int dwFlags, int fForce);
+        [DllImport("mpr.dll", EntryPoint = "WNetCancelConnection2", CharSet = CharSet.Auto)]
+        public static extern int WNetCancelConnection2(string lpName, uint dwFlags, bool fForce);
 
         public static int TryConnectNetwork(string remotePath, string userID, string pwd)
         {
+            // First, disconnect any existing connection.
+            DisconnectionNetwork(remotePath);
+
             NETRESOURCE localNetResource = new NETRESOURCE();
             int capacity = 1028;
             uint resultFlags = 0;
@@ -59,9 +62,11 @@ namespace Common
             return result;
         }
 
-        public static void DisconnectionNetwork()
+        public static void DisconnectionNetwork(string remotePath)
         {
-            WNetUseConnection2A(NetResorce.IpRemoteName, 1, 0);
+            // The second parameter (dwFlags) should be 0 for a disconnect.
+            // The third parameter (fForce) should be true (1) to force disconnect.
+            WNetCancelConnection2(remotePath, 0, true);
         }
 
         public static bool TryConnectResult(int state)
@@ -75,7 +80,7 @@ namespace Common
             else
             {
                 result = false;
-
+                Console.WriteLine($"Network connection failed with error code: {state}");
                 switch (state)
                 {
                     case ERROR_CODE.NO_ERROR: break;
