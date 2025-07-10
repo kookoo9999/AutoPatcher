@@ -1020,6 +1020,7 @@ namespace AutoPatcher
         {
             try
             {
+                string remotePath = remoteFolderPath;
                 remoteFolderPath = (bDirectPatch) ? 
                     System.IO.Path.Combine(remoteFolderPath, "bin") :
                     System.IO.Path.Combine(remoteFolderPath, "temp_update"); // 직접 패치 여부에 따라 백업 경로 설정
@@ -1061,58 +1062,105 @@ namespace AutoPatcher
                     }
                 }
 
-                // temp_update 폴더 생성
+                // temp_update 폴더 생성 및 파일 복사 (updater.exe 포함)
                 if (!bDirectPatch)
                 {
                     if (!Directory.Exists(remoteFolderPath))
                     {
                         Directory.CreateDirectory(remoteFolderPath); // 파일 시스템 작업, 예외 발생 가능성
                     }
-                }
 
-                // 폴더 생성
-                foreach (string folder in FoldersToCheck) // FoldersToCheck는 멤버 변수, 안정적이어야 함
-                {
-                    string fullFolderPath = System.IO.Path.Combine(remoteFolderPath, folder);
-                    if (!Directory.Exists(fullFolderPath))
+                    // SourceDirectory의 모든 파일과 폴더를 remoteFolderPath (temp_update)로 복사
+                    //await Task.Run(() => CopyAllFilesAndFolders(sourceDirectory, remoteFolderPath));
+                    await Task.Run(() => CopyFolder(sourceDirectory, remoteFolderPath));
+                    await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ All patch files copied to temp_update. External program will now execute Updater.exe."));
+
+                    // 플래그 파일 경로를 targetDir (bin 폴더)로 변경
+                    string successFlagFilePath = System.IO.Path.Combine(remotePath, "bin", "update_success.flag");
+                    bool updateSuccess = await WaitForUpdaterCompletion(ip, successFlagFilePath, 300); // 5분 대기
+
+                    if (updateSuccess)
                     {
-                        Directory.CreateDirectory(fullFolderPath); // 파일 시스템 작업, 예외 발생 가능성
-                    }
-                }
-
-                // 파일 업데이트 (ReplaceFileAsync로 변경)
-                int cnt = 0; //
-                foreach (string fileName in filesToCheck) // filesToCheck는 파라미터로 전달
-                {
-                    cnt++; //
-                    string localFilePath = System.IO.Path.Combine(sourceDirectory, fileName); //
-                    string remoteFilePath = System.IO.Path.Combine(remoteFolderPath, fileName); //
-
-                    bool updateNeeded = !System.IO.File.Exists(remoteFilePath) || IsFileUpdateNeeded(localFilePath, remoteFilePath); //
-
-                    if (updateNeeded)
-                    {
-                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Updating: {fileName}."));
-                        await ReplaceFileAsync(ip, remoteFolderPath, fileName, localFilePath); // 수정된 메서드 호출
+                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Updater.exe reported success."));
+                        return true;
                     }
                     else
                     {
-                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Skip (up-to-date): {fileName}")); //
+                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Updater.exe did not report success within the timeout.", LogLevel.ERROR));
+                        return false;
                     }
-                    // 개별 파일 진행률 업데이트는 전체 진행률 계산 방식 변경으로 인해 여기서는 제거하거나 다르게 처리
-                    // double currentIpFileProgress = (((double)cnt / (double)filesToCheck.Count)) * 100;
-                    // await Dispatcher.InvokeAsync(() => {
-                    //     // pbstatusBar.Value = currentIpFileProgress; //
-                    //     // txtStatusBar.Text = currentIpFileProgress.ToString("0.0") + "%"; //
-                    // });
                 }
-                return true;
+                // If bDirectPatch is true, the existing direct patch logic will be executed.
+                // This part remains unchanged.
+                else
+                {
+                    // Existing direct patch logic (copying files directly)
+                    // This part is for the case where bDirectPatch is true.
+                    // It should remain as is, as the request is to modify the updater.exe flow.
+                    // The original code for direct patch:
+                    // 폴더 생성
+                    foreach (string folder in FoldersToCheck) // FoldersToCheck는 멤버 변수, 안정적이어야 함
+                    {
+                        string fullFolderPath = System.IO.Path.Combine(remoteFolderPath, folder);
+                        if (!Directory.Exists(fullFolderPath))
+                        {
+                            Directory.CreateDirectory(fullFolderPath); // 파일 시스템 작업, 예외 발생 가능성
+                        }
+                    }
+
+                    // 파일 업데이트 (ReplaceFileAsync로 변경)
+                    int cnt = 0; //
+                    foreach (string fileName in filesToCheck) // filesToCheck는 파라미터로 전달
+                    {
+                        cnt++; //
+                        string localFilePath = System.IO.Path.Combine(sourceDirectory, fileName); //
+                        string remoteFilePath = System.IO.Path.Combine(remoteFolderPath, fileName); //
+
+                        bool updateNeeded = !System.IO.File.Exists(remoteFilePath) || IsFileUpdateNeeded(localFilePath, remoteFilePath); //
+
+                        if (updateNeeded)
+                        {
+                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Updating: {fileName}."));
+                            await ReplaceFileAsync(ip, remoteFolderPath, fileName, localFilePath); // 수정된 메서드 호출
+                        }
+                        else
+                        {
+                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Skip (up-to-date): {fileName}")); //
+                        }
+                    }
+                    return true;
+                }
             }
             catch (Exception ex)
             {
                 await Dispatcher.InvokeAsync(() => Log($"[{ip}] Error in PatchInternalAsync: {ex.Message}", LogLevel.ERROR)); //
                 return false;
             }
+        }
+
+        private async Task<bool> WaitForUpdaterCompletion(string ip, string successFlagFilePath, int timeoutSeconds)
+        {
+            string failureFlagFilePath = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(successFlagFilePath), "update_failure.flag");
+
+            int waitedSeconds = 0;
+            while (waitedSeconds < timeoutSeconds)
+            {
+                if (System.IO.File.Exists(successFlagFilePath))
+                {
+                    // 성공 플래그 파일이 존재하면 성공
+                    System.IO.File.Delete(successFlagFilePath); // 플래그 파일 삭제
+                    return true;
+                }
+                if (System.IO.File.Exists(failureFlagFilePath))
+                {
+                    // 실패 플래그 파일이 존재하면 실패
+                    System.IO.File.Delete(failureFlagFilePath); // 플래그 파일 삭제
+                    return false;
+                }
+                await Task.Delay(1000); // 1초 대기
+                waitedSeconds++;
+            }
+            return false; // 타임아웃 발생
         }
 
         bool ProcessStart(string ip)
@@ -1628,6 +1676,28 @@ namespace AutoPatcher
             else
             {
                 Debug.WriteLine("Folder not found at path: " + src);
+            }
+        }
+
+        private static void CopyAllFilesAndFolders(string sourceDir, string destinationDir)
+        {
+            var dir = new DirectoryInfo(sourceDir);
+            if (!dir.Exists)
+                throw new DirectoryNotFoundException($"Source directory not found: {dir.FullName}");
+
+            DirectoryInfo[] dirs = dir.GetDirectories();
+            Directory.CreateDirectory(destinationDir);
+
+            foreach (FileInfo file in dir.GetFiles())
+            {
+                string targetFilePath = System.IO.Path.Combine(destinationDir, file.Name);
+                file.CopyTo(targetFilePath, true); // true 옵션으로 덮어쓰기 허용
+            }
+
+            foreach (DirectoryInfo subDir in dirs)
+            {
+                string newDestinationDir = System.IO.Path.Combine(destinationDir, subDir.Name);
+                CopyAllFilesAndFolders(subDir.FullName, newDestinationDir); // 재귀 호출
             }
         }
 
