@@ -322,6 +322,13 @@ namespace AutoPatcher
             //ChangeCellColor(ip, Brushes.IndianRed);
         }
 
+        public void SetWaiting(string ip)
+        {
+            CellData targetCell = CellDatas.FirstOrDefault(item => item.IP == ip);
+            ChangeCellColor(targetCell.ROW, targetCell.COLUMN, System.Windows.Media.Brushes.Orange);
+            //ChangeCellColor(ip, Brushes.Yellow);
+        }
+
         private void ChangeCellColor(string val, SolidColorBrush color)
         {            
             // DataGrid의 각 행과 셀을 순회            
@@ -921,8 +928,7 @@ namespace AutoPatcher
                 string remoteBackupPath = System.IO.Path.Combine(remotePath, "backup"); 
                 string remoteConfigPath = System.IO.Path.Combine(remotePath, "config");
                 List<string> backupPathList = new List<string> { remoteFolderPath }; 
-                if (ProcessNameToCheck == "HDSInspector.exe") backupPathList.Add(remoteConfigPath); 
-
+                if (ProcessNameToCheck == "HDSInspector.exe") backupPathList.Add(remoteConfigPath);
 
                 // Patch 메서드를 호출 (PatchInternalAsync로 리팩토링 버전)
                 ipPatchSuccess = await PatchInternalAsync(currentIp, backupPathList, remoteBackupPath, remotePath, FilesToCheck, SourceDirectory, ProcessNameToCheck , UseDirectPatch);
@@ -934,6 +940,7 @@ namespace AutoPatcher
                         Log($"[{currentIp}] _ patch complete"); //
                         SetComplete(currentIp); //
                     });
+
                     if (!ProcessStart(currentIp)) //
                         await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _  failed to run process", LogLevel.ERROR)); //
                     else
@@ -1012,6 +1019,7 @@ namespace AutoPatcher
             }
             finally
             {
+
                 onIpCompletedCallback?.Invoke();
             }
         }
@@ -1024,6 +1032,7 @@ namespace AutoPatcher
                 remoteFolderPath = (bDirectPatch) ? 
                     System.IO.Path.Combine(remoteFolderPath, "bin") :
                     System.IO.Path.Combine(remoteFolderPath, "temp_update"); // 직접 패치 여부에 따라 백업 경로 설정
+                string remoteResultCheckPath = System.IO.Path.Combine(remotePath,"bin"); // 결과 확인 경로 (업데이트 성공 플래그 파일 위치)
                 // updater 사용않고 바로 직접패치 일경우
                 // process 체크 후 bin,config 백업
                 if (bDirectPatch)
@@ -1075,9 +1084,49 @@ namespace AutoPatcher
                     await Task.Run(() => CopyFolder(sourceDirectory, remoteFolderPath));
                     await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ All patch files copied to temp_update. External program will now execute Updater.exe."));
 
+                    #region IS 플래그 생성 로직
+                    if (ProcessNameToCheck == "IS.exe")
+                    {
+                        try
+                        {
+                            // 1. 현재  IP가 속한 rowdata
+                            RowData currentRowData = DataGridItems.FirstOrDefault(row =>
+                                row.PC1 == ip || row.PC2 == ip || row.PC3 == ip ||
+                                row.PC4 == ip || row.PC5 == ip || row.PC6 == ip);
+
+                            if (currentRowData != null && !string.IsNullOrEmpty(currentRowData.PC1))
+                            {
+                                // 2. 해당 행의 PC1 IP(main)
+                                string mainIP = currentRowData.PC1;
+                                string mainRemotePath = $"\\\\{mainIP}\\D$";
+
+                                if (Directory.Exists(mainRemotePath))
+                                {
+                                    string flagFilePath = System.IO.Path.Combine(mainRemotePath, "isupdate.flag");
+                                    System.IO.File.Create(flagFilePath).Close(); // 빈 플래그 파일 생성
+                                    await Dispatcher.InvokeAsync(() => Log($"[{ip}] --> Created 'isupdate.flag' on PC1 ({mainIP})."));
+                                }
+                                else
+                                {
+                                    await Dispatcher.InvokeAsync(() => Log($"[{ip}] --> Path on PC1 not found: {mainRemotePath}", LogLevel.WARN));
+                                }
+                            }
+                            else
+                            {
+                                await Dispatcher.InvokeAsync(() => Log($"[{ip}] --> Could not find PC1 IP for this group. Flag creation skipped.", LogLevel.WARN));
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            // 플래그 생성 실패가 전체 패치 결과에 영향을 주지 않도록 예외 처리
+                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] --> FAILED to create 'isupdate.flag' on PC1. Error: {ex.Message}", LogLevel.ERROR));
+                        }
+                    }
+                    #endregion
+
                     // 플래그 파일 경로를 targetDir (bin 폴더)로 변경
                     string successFlagFilePath = System.IO.Path.Combine(remotePath, "bin", "update_success.flag");
-                    bool updateSuccess = await WaitForUpdaterCompletion(ip, successFlagFilePath, 300); // 5분 대기
+                    bool updateSuccess = await WaitForUpdaterCompletion(ip, successFlagFilePath, 3600); // 5분 대기
 
                     if (updateSuccess)
                     {
@@ -1141,7 +1190,7 @@ namespace AutoPatcher
         private async Task<bool> WaitForUpdaterCompletion(string ip, string successFlagFilePath, int timeoutSeconds)
         {
             string failureFlagFilePath = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(successFlagFilePath), "update_failure.flag");
-
+            SetWaiting(ip); // 대기 상태로 설정
             int waitedSeconds = 0;
             while (waitedSeconds < timeoutSeconds)
             {
