@@ -1031,8 +1031,11 @@ namespace AutoPatcher
                 string remotePath = remoteFolderPath;
                 remoteFolderPath = (bDirectPatch) ? 
                     System.IO.Path.Combine(remoteFolderPath, "bin") :
-                    System.IO.Path.Combine(remoteFolderPath, "temp_update"); // 직접 패치 여부에 따라 백업 경로 설정
+                    System.IO.Path.Combine(remoteFolderPath, "기존버전_수정본"); // 직접 패치 여부에 따라 백업 경로 설정
                 string remoteResultCheckPath = System.IO.Path.Combine(remotePath,"bin"); // 결과 확인 경로 (업데이트 성공 플래그 파일 위치)
+
+                
+
                 // updater 사용않고 바로 직접패치 일경우
                 // process 체크 후 bin,config 백업
                 if (bDirectPatch)
@@ -1073,11 +1076,12 @@ namespace AutoPatcher
 
                 // temp_update 폴더 생성 및 파일 복사 (updater.exe 포함)
                 if (!bDirectPatch)
-                {
+                {  
+
                     if (!Directory.Exists(remoteFolderPath))
                     {
                         Directory.CreateDirectory(remoteFolderPath); // 파일 시스템 작업, 예외 발생 가능성
-                    }
+                    }                    
 
                     // SourceDirectory의 모든 파일과 폴더를 remoteFolderPath (temp_update)로 복사
                     //await Task.Run(() => CopyAllFilesAndFolders(sourceDirectory, remoteFolderPath));
@@ -1126,7 +1130,7 @@ namespace AutoPatcher
 
                     // 플래그 파일 경로를 targetDir (bin 폴더)로 변경
                     string successFlagFilePath = System.IO.Path.Combine(remotePath, "bin", "update_success.flag");
-                    bool updateSuccess = await WaitForUpdaterCompletion(ip, successFlagFilePath, 3600); // 5분 대기
+                    bool updateSuccess = await WaitForUpdaterCompletion(ip, successFlagFilePath, 1); // 5분 대기
 
                     if (updateSuccess)
                     {
