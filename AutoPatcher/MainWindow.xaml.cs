@@ -1031,10 +1031,11 @@ namespace AutoPatcher
                 string remotePath = remoteFolderPath;
                 remoteFolderPath = (bDirectPatch) ? 
                     System.IO.Path.Combine(remoteFolderPath, "bin") :
-                    System.IO.Path.Combine(remoteFolderPath, "기존버전_수정본"); // 직접 패치 여부에 따라 백업 경로 설정
+                    System.IO.Path.Combine(remoteFolderPath, "기존버전"); // 직접 패치 여부에 따라 백업 경로 설정
                 string remoteResultCheckPath = System.IO.Path.Combine(remotePath,"bin"); // 결과 확인 경로 (업데이트 성공 플래그 파일 위치)
 
-                
+                // temp_update 폴더가 존재하면 그 내용만 삭제합니다.
+                if (!bDirectPatch) ClearFolder(remoteFolderPath);
 
                 // updater 사용않고 바로 직접패치 일경우
                 // process 체크 후 bin,config 백업
@@ -1102,17 +1103,30 @@ namespace AutoPatcher
                             {
                                 // 2. 해당 행의 PC1 IP(main)
                                 string mainIP = currentRowData.PC1;
-                                string mainRemotePath = $"\\\\{mainIP}\\D$";
+                                // ================== d$, D$ 모두 처리하도록 수정 ==================
+                                string mainRemotePath_D = $"\\\\{mainIP}\\D$";
+                                string mainRemotePath_d = $"\\\\{mainIP}\\d$";
+                                string actualMainRemotePath = null;
 
-                                if (Directory.Exists(mainRemotePath))
+                                if (Directory.Exists(mainRemotePath_D))
                                 {
-                                    string flagFilePath = System.IO.Path.Combine(mainRemotePath, "isupdate.flag");
+                                    actualMainRemotePath = mainRemotePath_D;
+                                }
+                                else if (Directory.Exists(mainRemotePath_d))
+                                {
+                                    actualMainRemotePath = mainRemotePath_d;
+                                }
+                                // ============================================================
+
+                                if (actualMainRemotePath != null)
+                                {
+                                    string flagFilePath = System.IO.Path.Combine(actualMainRemotePath, "isupdate.flag");
                                     System.IO.File.Create(flagFilePath).Close(); // 빈 플래그 파일 생성
                                     await Dispatcher.InvokeAsync(() => Log($"[{ip}] --> Created 'isupdate.flag' on PC1 ({mainIP})."));
                                 }
                                 else
                                 {
-                                    await Dispatcher.InvokeAsync(() => Log($"[{ip}] --> Path on PC1 not found: {mainRemotePath}", LogLevel.WARN));
+                                    await Dispatcher.InvokeAsync(() => Log($"[{ip}] --> Path on PC1 not found (tried D$ and d$): {mainRemotePath_D}", LogLevel.WARN));
                                 }
                             }
                             else
@@ -1130,7 +1144,7 @@ namespace AutoPatcher
 
                     // 플래그 파일 경로를 targetDir (bin 폴더)로 변경
                     string successFlagFilePath = System.IO.Path.Combine(remotePath, "bin", "update_success.flag");
-                    bool updateSuccess = await WaitForUpdaterCompletion(ip, successFlagFilePath, 1); // 5분 대기
+                    bool updateSuccess = await WaitForUpdaterCompletion(ip, successFlagFilePath, 3600); // 5분 대기
 
                     if (updateSuccess)
                     {
@@ -1680,6 +1694,28 @@ namespace AutoPatcher
 
             // 폴더복사            
             CopyFolder(src, backupPath);
+        }
+
+        /// <summary>
+        /// 폴더 내의 모든 파일과 하위 폴더를 삭제합니다. (폴더 자체는 유지)
+        /// </summary>
+        /// <param name="folderPath">내용을 비울 폴더의 경로</param>
+        public void ClearFolder(string folderPath)
+        {
+            if (Directory.Exists(folderPath))
+            {
+                DirectoryInfo di = new DirectoryInfo(folderPath);
+
+                foreach (FileInfo file in di.GetFiles())
+                {
+                    file.Delete();
+                }
+
+                foreach (DirectoryInfo dir in di.GetDirectories())
+                {
+                    dir.Delete(true);
+                }
+            }
         }
 
         public static void CopyFile(string src, string dest)
