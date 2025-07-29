@@ -956,10 +956,10 @@ namespace AutoPatcher
                 }
 
                 #region 체크박스 해제 로직 추가
-                CellData cellInfoForUncheck = CellDatas.FirstOrDefault(item => item.IP == currentIp);
-                if (cellInfoForUncheck != null)
+                await Dispatcher.InvokeAsync(() =>
                 {
-                    await Dispatcher.InvokeAsync(() =>
+                    CellData cellInfoForUncheck = CellDatas.FirstOrDefault(item => item.IP == currentIp);
+                    if (cellInfoForUncheck != null)
                     {
                         // DataGridItems 컬렉션과 RowData 인덱스의 유효성 확인
                         if (cellInfoForUncheck.ROW >= 0 && cellInfoForUncheck.ROW < DataGridItems.Count)
@@ -1001,12 +1001,12 @@ namespace AutoPatcher
                         {
                             Log($"[{currentIp}] Invalid row index {cellInfoForUncheck.ROW} for IP {currentIp} when trying to uncheck checkbox.", LogLevel.WARN);
                         }
-                    });
-                }
-                else
-                {
-                    Log($"[{currentIp}] Could not find CellData for IP {currentIp} to uncheck checkbox.", LogLevel.WARN);
-                }
+                    }
+                    else
+                    {
+                        Log($"[{currentIp}] Could not find CellData for IP {currentIp} to uncheck checkbox.", LogLevel.WARN);
+                    }
+                });
                 #endregion
             }
             catch (Exception ex)
@@ -1214,13 +1214,13 @@ namespace AutoPatcher
             {
                 if (System.IO.File.Exists(successFlagFilePath))
                 {
-                    // 성공 플래그 파일이 존재하면 성공
+                    // 성공 플래그 파일이 존재하면 성공처리
                     System.IO.File.Delete(successFlagFilePath); // 플래그 파일 삭제
                     return true;
                 }
                 if (System.IO.File.Exists(failureFlagFilePath))
                 {
-                    // 실패 플래그 파일이 존재하면 실패
+                    // 실패 플래그 파일이 존재하면 실패처리
                     System.IO.File.Delete(failureFlagFilePath); // 플래그 파일 삭제
                     return false;
                 }
