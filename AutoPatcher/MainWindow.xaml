@@ -38,7 +38,7 @@
                     <RadioButton x:Name="rdSII" FontWeight="Bold" Foreground="AntiqueWhite"  FontSize="15" VerticalContentAlignment="Center" Content="SII" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[1],Mode=TwoWay}"></RadioButton>
                     <RadioButton x:Name="rdBGA" FontWeight="Bold" Foreground="AntiqueWhite"  FontSize="15" VerticalContentAlignment="Center" Content="BGA" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[2],Mode=TwoWay}"></RadioButton>
                     <RadioButton x:Name="rdCOB" FontWeight="Bold" Foreground="AntiqueWhite"  FontSize="15" VerticalContentAlignment="Center" Content="COB" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[3],Mode=TwoWay}"></RadioButton>
-                    <Button x:Name="btnSetSchTask" Click="btnSetSchTask_Click" FontWeight="Bold"  FontSize="15" Content="TASK" Margin="20,0,0,0"/>
+                    <Button x:Name="btnSetSchTask" Click="btnSetSchTask_Click" FontWeight="Bold"  FontSize="15" Content="Get Log" Margin="20,0,0,0"/>
                 </StackPanel>
                 <Label Grid.Column="1" x:Name="lblList" Content="-" FontWeight="Bold" Foreground="AntiqueWhite"  FontSize="15" VerticalContentAlignment="Center" VerticalAlignment="Center" HorizontalContentAlignment="Center"/>
             </Grid>
@@ -433,17 +433,29 @@
 
                 <!--run patch-->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Height="Auto" Margin="5,0,0,5">
-                    <Button 
-                            x:Name              ="btnRunPatch" 
-                            Content             ="Patch"
-                            Width               ="80" 
-                            Height              ="30"  
-                            VerticalAlignment   ="Top" 
-                            HorizontalAlignment ="Left" 
-                            Click               ="btnRunPatch_Click"                            
-                            FontSize="13"
-                            />
+                                   
+                    <Label Content="Waiting Time (min)" Foreground="AntiqueWhite" Margin="5,0,0,0" VerticalAlignment="Center" FontSize="13"/>
+                    <ComboBox x:Name="cmbWaitTime" Width="80" HorizontalContentAlignment="Center"  VerticalContentAlignment="Center" FontSize="13" Margin="10,0,0,0" SelectedIndex="6" SelectionChanged="cmbWaitTime_SelectionChanged">
+                        <ComboBoxItem Content="5"/>
+                        <ComboBoxItem Content="10"/>
+                        <ComboBoxItem Content="20"/>
+                        <ComboBoxItem Content="30"/>
+                        <ComboBoxItem Content="40"/>
+                        <ComboBoxItem Content="50"/>
+                        <ComboBoxItem Content="60"/>
+                    </ComboBox>
 
+                    <Button 
+                        x:Name              ="btnRunPatch" 
+                        Content             ="Patch"
+                        Width               ="80" 
+                        Height              ="30"  
+                        VerticalAlignment   ="Top" 
+                        HorizontalAlignment ="Left" 
+                        Click               ="btnRunPatch_Click"      
+                        Margin="15,0,0,0"
+                        FontSize="13"
+                    />
                 </StackPanel>
             </Grid>
         </Grid>

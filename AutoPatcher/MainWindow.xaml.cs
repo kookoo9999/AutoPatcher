@@ -49,6 +49,8 @@ namespace AutoPatcher
     {
         #region member
 
+        public int mWaitingTime = 3600;
+
         private bool _UseDirectPatch = false;
         public bool UseDirectPatch
         {
@@ -78,7 +80,7 @@ namespace AutoPatcher
             set { _ErrorStop = value; }
         }
 
-        
+
         double pgcnt = 0.0;
         double pgtotalcnt = 0.0;
 
@@ -182,19 +184,19 @@ namespace AutoPatcher
         public MainWindow()
         {
             InitializeComponent();
-            DataGridItems           = new ObservableCollection<RowData>();
-            CellDatas               = new Collection<CellData>();
-            FileList                = new ObservableCollection<string>();            
-            FilesToCheck            = new List<string>();
-            IPAddresses             = new List<string>();
-            FoldersToCheck          = new List<string>();            
-            DataGrid.ItemsSource    = DataGridItems;
+            DataGridItems = new ObservableCollection<RowData>();
+            CellDatas = new Collection<CellData>();
+            FileList = new ObservableCollection<string>();
+            FilesToCheck = new List<string>();
+            IPAddresses = new List<string>();
+            FoldersToCheck = new List<string>();
+            DataGrid.ItemsSource = DataGridItems;
             FileListBox.ItemsSource = FileList;
         }
 
         string GetStringLogLevel(LogLevel lv)
         {
-            string ret="";
+            string ret = "";
             switch (lv)
             {
                 case LogLevel.DEBUG:
@@ -247,17 +249,17 @@ namespace AutoPatcher
         }
 
         #region Update result
-        
+
         private void Log_o(string msg, LogLevel level = LogLevel.INFO)
         {
             string text = $"[{DateTime.Now.ToString("g")}] [{GetStringLogLevel(level)}] : {msg}\n";
 
             Run run = new Run(text);
-            
+
             //LogBox.AppendText(text);            
             if (level == LogLevel.INFO || level == LogLevel.DEBUG)
             {
-                run.Foreground = System.Windows.Media.Brushes.AntiqueWhite;                
+                run.Foreground = System.Windows.Media.Brushes.AntiqueWhite;
                 //SetMessage(msg);
             }
             else if (level == LogLevel.ERROR || level == LogLevel.WARN)
@@ -289,8 +291,8 @@ namespace AutoPatcher
 
             Dispatcher.InvokeAsync(() => // UI 스레드에서 실행 보장
             {
-                LogBox.Inlines.Add(run); 
-                LogScroll.ScrollToEnd(); 
+                LogBox.Inlines.Add(run);
+                LogScroll.ScrollToEnd();
             });
         }
 
@@ -310,27 +312,35 @@ namespace AutoPatcher
         {
             IPAddresses.Remove(ip);
             CellData targetCell = CellDatas.FirstOrDefault(item => item.IP == ip);
-            ChangeCellColor(targetCell.ROW, targetCell.COLUMN, System.Windows.Media.Brushes.DeepSkyBlue);            
-            //ChangeCellColor(ip, Brushes.LimeGreen);
+            if (targetCell != null)
+            {
+                targetCell.StatusBrush = System.Windows.Media.Brushes.DeepSkyBlue;
+                ChangeCellColor(targetCell.ROW, targetCell.COLUMN, targetCell.StatusBrush);
+            }
         }
 
         public void SetFail(string ip)
         {
-            //IPAddresses.Remove(ip);
             CellData targetCell = CellDatas.FirstOrDefault(item => item.IP == ip);
-            ChangeCellColor(targetCell.ROW, targetCell.COLUMN, System.Windows.Media.Brushes.IndianRed);
-            //ChangeCellColor(ip, Brushes.IndianRed);
+            if (targetCell != null)
+            {
+                targetCell.StatusBrush = System.Windows.Media.Brushes.IndianRed;
+                ChangeCellColor(targetCell.ROW, targetCell.COLUMN, targetCell.StatusBrush);
+            }
         }
 
         public void SetWaiting(string ip)
         {
             CellData targetCell = CellDatas.FirstOrDefault(item => item.IP == ip);
-            ChangeCellColor(targetCell.ROW, targetCell.COLUMN, System.Windows.Media.Brushes.Orange);
-            //ChangeCellColor(ip, Brushes.Yellow);
+            if (targetCell != null)
+            {
+                targetCell.StatusBrush = System.Windows.Media.Brushes.Orange;
+                ChangeCellColor(targetCell.ROW, targetCell.COLUMN, targetCell.StatusBrush);
+            }
         }
 
         private void ChangeCellColor(string val, SolidColorBrush color)
-        {            
+        {
             // DataGrid의 각 행과 셀을 순회            
             foreach (var row in this.DataGrid.Items)
             {
@@ -362,13 +372,13 @@ namespace AutoPatcher
             }
 
 
-            
+
         }
 
-        private void ChangeCellColor(int row, int col, SolidColorBrush color)
+        private void ChangeCellColor(int row, int col, System.Windows.Media.Brush color)
         {
             var cell = GetCell(row, col);
-            if(cell != null)
+            if (cell != null)
             {
                 cell.Background = color;
                 cell.Focus();
@@ -478,7 +488,7 @@ namespace AutoPatcher
                 {
                     return true;
                 }
-                else if (!NetworkDriveConnector.TryConnectResult(state) && Count >3)
+                else if (!NetworkDriveConnector.TryConnectResult(state) && Count > 3)
                 {
                     return false;
                 }
@@ -494,7 +504,7 @@ namespace AutoPatcher
         /// <param name="remoteBackupPath">(\\backup)</param>
         /// <param name="remoteFolderPath">Excute path (bin)</param>
         /// <returns></returns>
-        private async Task Patch(string ip ,List<string> BackupPathList,string remoteBackupPath,string remoteFolderPath)
+        private async Task Patch(string ip, List<string> BackupPathList, string remoteBackupPath, string remoteFolderPath)
         {
             try
             {
@@ -507,7 +517,7 @@ namespace AutoPatcher
                     //ChangeCellColor(ip, Brushes.IndianRed);
                     await Task.Delay(10);
                     PatchResult = false;
-                    return ;
+                    return;
                 }
                 Log($"[{ip}] _ Ping success");
                 await Task.Delay(10);
@@ -516,14 +526,14 @@ namespace AutoPatcher
                 #region check process running
                 // 프로그램 실행 중 확인
                 if (IsProgramRunning(ip, ProcessNameToCheck))
-                {                    
+                {
                     Log($"[{ip}] _ {ProcessNameToCheck} is running : Waiting for exit ...");
                     Debug.WriteLine($"[{ip}] 프로그램 실행 중: {ProcessNameToCheck}. 종료를 기다립니다...");
                     await Task.Delay(10);
                     WaitForProcessToExit(ip, ProcessNameToCheck, timeoutSeconds: 120);
                 }
                 else
-                {                    
+                {
                     Log($"[{ip}] _ [{ProcessNameToCheck}] is not running. Try to patch..");
                     await Task.Delay(10);
                     Debug.WriteLine($"[{ip}] 프로그램이 실행 중이 아닙니다. 패치 진행.");
@@ -532,19 +542,19 @@ namespace AutoPatcher
 
                 #region backup
                 foreach (string strBackUpPath in BackupPathList)
-                {                                 
+                {
                     Log($"[{ip}] _ [{strBackUpPath}] back up..");
                     await Task.Delay(1);
                     if (!CheckBackupFolder(strBackUpPath, remoteBackupPath))
-                    {                        
+                    {
                         Log($"[{ip}] _ {strBackUpPath} dosen't exist", LogLevel.ERROR);
                         await Task.Delay(1);
                         PatchResult = false;
-                        return ;
+                        return;
                     }
 
                     else
-                    {                        
+                    {
                         Log($"[{ip}] _ [{strBackUpPath}] Backup successfully!");
                         await Task.Delay(1);
                     }
@@ -563,7 +573,7 @@ namespace AutoPatcher
                 // 파일 업데이트 작업
                 int cnt = 0; pgcnt = 0.0;
                 foreach (string fileName in FilesToCheck)
-                {                    
+                {
                     //Log($"[{ip}] _ Patching {fileName} ..");
                     await Task.Delay(10);
                     cnt++;
@@ -576,11 +586,11 @@ namespace AutoPatcher
                     //}
 
                     if (IsFileUpdateNeeded(localFilePath, remoteFilePath))
-                    {                        
+                    {
                         Debug.WriteLine($"[{ip}] 업데이트 필요: {fileName}. 백업 및 교체를 진행합니다.");
                         //Log($"[{ip}] _ Update: {fileName}. Backup and replace in progress.");
                         await Task.Delay(1);
-                        ReplaceFile(ip,remoteFolderPath, fileName, localFilePath);
+                        ReplaceFile(ip, remoteFolderPath, fileName, localFilePath);
                     }
                     else
                     {
@@ -588,12 +598,12 @@ namespace AutoPatcher
                         Log($"[{ip}] _ Skip : {fileName}");
                         await Task.Delay(1);
                     }
-                    
+
                     pgcnt = (((double)cnt / (double)FilesToCheck.Count)) * 100;
-                    pgtotalcnt += (((double)1 / ((double)FilesToCheck.Count * (double)IPAddresses.Count ))) * 100;
+                    pgtotalcnt += (((double)1 / ((double)FilesToCheck.Count * (double)IPAddresses.Count))) * 100;
 
                     pbstatusBar.Value = pgcnt;
-                    txtStatusBar.Text = pgcnt.ToString("0.0")+"%";
+                    txtStatusBar.Text = pgcnt.ToString("0.0") + "%";
                     pbtotalBar.Value = pgtotalcnt;
                     txttotalBar.Text = pgtotalcnt.ToString("0.0") + "%";
                     await Task.Delay(1);
@@ -601,15 +611,15 @@ namespace AutoPatcher
                 #endregion
             }
             catch (Exception ex)
-            {                
-                Log(ex.Message,LogLevel.ERROR);
+            {
+                Log(ex.Message, LogLevel.ERROR);
                 await Task.Delay(10);
                 PatchResult = false;
-                return ;
+                return;
             }
 
             PatchResult = true;
-            return ;
+            return;
         }
 
         public async Task StartAutoPatch()
@@ -622,7 +632,7 @@ namespace AutoPatcher
             }
 
             if (FilesToCheck.Count == 0)
-            {                
+            {
                 var res = GetFileListFromDirectory(SourceDirectory);
                 FilesToCheck = res.files;
                 FoldersToCheck = res.folders;
@@ -809,9 +819,31 @@ namespace AutoPatcher
             await Task.WhenAll(patchTasks);
 
             await Dispatcher.InvokeAsync(() => lblList.Content = $"Number of left machine : {IPAddresses.Count}");
-            
+
             await Dispatcher.InvokeAsync(() => Log("All patching operations have been attempted."));
-            Debug.WriteLine("모든 작업이 완료되었습니다."); 
+            Debug.WriteLine("모든 작업이 완료되었습니다.");
+        }
+
+        public string GetInspectionUnitFromIp(string ip)
+        {
+            if (string.IsNullOrEmpty(ip))
+            {
+                return null;
+            }
+
+            // DataGridItems 컬렉션에서 IP 주소와 일치하는 첫 번째 행(RowData)을 찾습니다.
+            // LINQ의 FirstOrDefault를 사용하면 코드를 간결하게 작성할 수 있습니다.
+            RowData foundRow = DataGridItems.FirstOrDefault(row =>
+                row.PC1 == ip ||
+                row.PC2 == ip ||
+                row.PC3 == ip ||
+                row.PC4 == ip ||
+                row.PC5 == ip ||
+                row.PC6 == ip);
+
+            // 일치하는 행을 찾았다면 해당 행의 InspectionUnit 값을 반환하고,
+            // 찾지 못했다면 null을 반환합니다.
+            return foundRow?.InspectionUnit;
         }
 
         private async Task ProcessSingleIPAsync(string ip, int totalIPCount, System.Action onIpCompletedCallback)
@@ -832,7 +864,7 @@ namespace AutoPatcher
                     if (cellData != null)
                     {
                         ChangeCellColor(cellData.ROW, cellData.COLUMN, System.Windows.Media.Brushes.LimeGreen); //
-                     // GetCell(cellData.ROW, cellData.COLUMN)?.Focus(); // 포커싱은 UI를 혼란스럽게 할 수 있음
+                                                                                                                // GetCell(cellData.ROW, cellData.COLUMN)?.Focus(); // 포커싱은 UI를 혼란스럽게 할 수 있음
                     }
                 });
                 await Task.Delay(100); //
@@ -855,7 +887,7 @@ namespace AutoPatcher
                 if (ModeType == "SII" && ProcessNameToCheck == "IS.exe") strPCtype += "\\IS"; //
                 string diskType = "D"; //
                 string remotePath = ""; //
-               
+
                 string[] remotePathList =
                 {
                       $"\\\\{ip}\\{strPCtype.ToLower()}",                       // ip : main,vision
@@ -924,14 +956,14 @@ namespace AutoPatcher
                     return;
                 }
 
-                string remoteFolderPath = System.IO.Path.Combine(remotePath, "bin"); 
-                string remoteBackupPath = System.IO.Path.Combine(remotePath, "backup"); 
+                string remoteFolderPath = System.IO.Path.Combine(remotePath, "bin");
+                string remoteBackupPath = System.IO.Path.Combine(remotePath, "backup");
                 string remoteConfigPath = System.IO.Path.Combine(remotePath, "config");
-                List<string> backupPathList = new List<string> { remoteFolderPath }; 
+                List<string> backupPathList = new List<string> { remoteFolderPath };
                 if (ProcessNameToCheck == "HDSInspector.exe") backupPathList.Add(remoteConfigPath);
 
                 // Patch 메서드를 호출 (PatchInternalAsync로 리팩토링 버전)
-                ipPatchSuccess = await PatchInternalAsync(currentIp, backupPathList, remoteBackupPath, remotePath, FilesToCheck, SourceDirectory, ProcessNameToCheck , UseDirectPatch);
+                ipPatchSuccess = await PatchInternalAsync(currentIp, backupPathList, remoteBackupPath, remotePath, FilesToCheck, SourceDirectory, ProcessNameToCheck, UseDirectPatch);
 
                 if (ipPatchSuccess)
                 {
@@ -941,10 +973,10 @@ namespace AutoPatcher
                         SetComplete(currentIp); //
                     });
 
-                    if (!ProcessStart(currentIp)) //
-                        await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _  failed to run process", LogLevel.ERROR)); //
-                    else
-                        await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _  success to run process")); //
+                    //if (!ProcessStart(currentIp)) //
+                    //    await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _  failed to run process", LogLevel.ERROR)); //
+                    //else
+                    //    await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _  success to run process")); //
                 }
                 else
                 {
@@ -1024,15 +1056,15 @@ namespace AutoPatcher
             }
         }
 
-        private async Task<bool> PatchInternalAsync(string ip, List<string> backupPathList, string remoteBackupPath, string remoteFolderPath, List<string> filesToCheck, string sourceDirectory, string processNameToCheck , bool bDirectPatch = false)
+        private async Task<bool> PatchInternalAsync(string ip, List<string> backupPathList, string remoteBackupPath, string remoteFolderPath, List<string> filesToCheck, string sourceDirectory, string processNameToCheck, bool bDirectPatch = false)
         {
             try
             {
                 string remotePath = remoteFolderPath;
-                remoteFolderPath = (bDirectPatch) ? 
+                remoteFolderPath = (bDirectPatch) ?
                     System.IO.Path.Combine(remoteFolderPath, "bin") :
-                    System.IO.Path.Combine(remoteFolderPath, "기존버전"); // 직접 패치 여부에 따라 백업 경로 설정
-                string remoteResultCheckPath = System.IO.Path.Combine(remotePath,"bin"); // 결과 확인 경로 (업데이트 성공 플래그 파일 위치)
+                    System.IO.Path.Combine(remoteFolderPath, "temp_update"); // 직접 패치 여부에 따라 백업 경로 설정
+                string remoteResultCheckPath = System.IO.Path.Combine(remotePath, "bin"); // 결과 확인 경로 (업데이트 성공 플래그 파일 위치)
 
                 // temp_update 폴더가 존재하면 그 내용만 삭제합니다.
                 if (!bDirectPatch) ClearFolder(remoteFolderPath);
@@ -1077,12 +1109,12 @@ namespace AutoPatcher
 
                 // temp_update 폴더 생성 및 파일 복사 (updater.exe 포함)
                 if (!bDirectPatch)
-                {  
+                {
 
                     if (!Directory.Exists(remoteFolderPath))
                     {
                         Directory.CreateDirectory(remoteFolderPath); // 파일 시스템 작업, 예외 발생 가능성
-                    }                    
+                    }
 
                     // SourceDirectory의 모든 파일과 폴더를 remoteFolderPath (temp_update)로 복사
                     //await Task.Run(() => CopyAllFilesAndFolders(sourceDirectory, remoteFolderPath));
@@ -1144,7 +1176,7 @@ namespace AutoPatcher
 
                     // 플래그 파일 경로를 targetDir (bin 폴더)로 변경
                     string successFlagFilePath = System.IO.Path.Combine(remotePath, "bin", "update_success.flag");
-                    bool updateSuccess = await WaitForUpdaterCompletion(ip, successFlagFilePath, 3600); // 5분 대기
+                    bool updateSuccess = await WaitForUpdaterCompletion(ip, successFlagFilePath, mWaitingTime); // 5분 대기
 
                     if (updateSuccess)
                     {
@@ -1248,7 +1280,7 @@ namespace AutoPatcher
                 string id = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_ID");
                 string pw = rscManager.GetString($"{ModeType.ToUpper()}_{PCType.ToUpper()}_PW");
 
-                si.Arguments = $"/run /tn {PCType.ToUpper()} /s {ip} /u {id} /p {pw}";                
+                si.Arguments = $"/run /tn {PCType.ToUpper()} /s {ip} /u {id} /p {pw}";
                 run.StartInfo = si;
                 run.Start();
                 Task.Delay(100);
@@ -1312,7 +1344,7 @@ namespace AutoPatcher
             //    Console.WriteLine($"일반 오류: {ex.Message}");
             //    return false;
         */
-        
+
 
         // 원격 프로그램 실행 여부 확인 (wmic로 수정필요)
         bool IsProgramRunning(string ip, string processName)
@@ -1337,8 +1369,8 @@ namespace AutoPatcher
                 else return false;
             }
             catch
-            {                
-                Log("Check process error",LogLevel.ERROR);
+            {
+                Log("Check process error", LogLevel.ERROR);
                 return false;
             }
 
@@ -1370,11 +1402,11 @@ namespace AutoPatcher
             while (IsProgramRunning(ip, processName))
             {
                 if (waitedSeconds >= timeoutSeconds)
-                {                    
-                    Log($"[{ip}] TimeOut: {processName} timeout occurred while waiting for termination.",LogLevel.ERROR);
+                {
+                    Log($"[{ip}] TimeOut: {processName} timeout occurred while waiting for termination.", LogLevel.ERROR);
                     Debug.WriteLine($"[{ip}] 타임아웃: {processName} 종료를 기다리는 동안 시간이 초과되었습니다.");
                     break;
-                }                
+                }
                 Log($"[{ip}] {processName} is running... waiting for {waitedSeconds + 1} sec..");
                 Debug.WriteLine($"[{ip}] {processName} 실행 중... {waitedSeconds + 1}초 대기.");
                 System.Threading.Thread.Sleep(1000);
@@ -1432,7 +1464,7 @@ namespace AutoPatcher
             //string backupFilePath = System.IO.Path.Combine(backupPath, fileName);
             //File.Move(remoteFilePath, backupFilePath);
             System.IO.File.Delete(remoteFilePath);
-            System.IO.File.Copy(localFilePath, remoteFilePath);                        
+            System.IO.File.Copy(localFilePath, remoteFilePath);
             Log($"[{ip}] _ Updated : {fileName}");
             Debug.WriteLine($"[{remoteFolderPath}] 업데이트 완료: {fileName}");
         }
@@ -1593,7 +1625,7 @@ namespace AutoPatcher
             }
             catch (Exception ex)
             {
-                Log($"Error occurred while accessing the directory: {ex.Message}",LogLevel.ERROR);
+                Log($"Error occurred while accessing the directory: {ex.Message}", LogLevel.ERROR);
                 System.Windows.MessageBox.Show($"디렉터리 접근 중 오류 발생: {ex.Message}");
                 return (new List<string>(), new List<string>());
             }
@@ -1633,10 +1665,10 @@ namespace AutoPatcher
             }
 
             try
-            {                
+            {
                 if (!Directory.Exists(src))
                 {
-                    Log($"{src} doesn't exist",LogLevel.ERROR);
+                    Log($"{src} doesn't exist", LogLevel.ERROR);
                     System.Windows.MessageBox.Show($"{src} doesn't exist");
                     return false;
                 }
@@ -1649,7 +1681,7 @@ namespace AutoPatcher
             catch (Exception ex)
             {
                 Log($"Error: {ex.Message}", LogLevel.ERROR);
-                System.Windows.MessageBox.Show($"Error: {ex.Message}");                
+                System.Windows.MessageBox.Show($"Error: {ex.Message}");
                 return false;
             }
             return true;
@@ -1760,7 +1792,7 @@ namespace AutoPatcher
                     }
 
                     Debug.WriteLine("Folder copied successfully!");
-                }    
+                }
             }
             else
             {
@@ -1827,7 +1859,7 @@ namespace AutoPatcher
             if (string.IsNullOrEmpty(ProcessNameToCheck))
             {
                 await Task.Delay(1);
-                Log("Set the process name",LogLevel.ERROR);                
+                Log("Set the process name", LogLevel.ERROR);
                 System.Windows.MessageBox.Show("Set the process name");
                 return;
             }
@@ -1836,16 +1868,16 @@ namespace AutoPatcher
 
             cofd.IsFolderPicker = true;
 
-            if(cofd.ShowDialog()==CommonFileDialogResult.Ok)
+            if (cofd.ShowDialog() == CommonFileDialogResult.Ok)
             {
                 SourceDirectory = cofd.FileName + "\\";
                 await Task.Delay(1);
                 Log($"Loading.. {SourceDirectory}");
                 LoadFilesFromFolder(cofd.FileName);
                 lblCurDir.Content = cofd.FileName;
-                Log("Loaded patch list");                
+                Log("Loaded patch list");
             }
-            
+
 
             //using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
             //{
@@ -1857,16 +1889,16 @@ namespace AutoPatcher
             //        LoadFilesFromFolder(dialog.SelectedPath);
             //        lblCurDir.Content = dialog.SelectedPath;
             //    }
-                
+
             //}
-            
+
         }
 
         private void btnLoadExcel_Click(object sender, RoutedEventArgs e)
         {
             if (SelectedMode == -1)
             {
-                Log("Select node type",LogLevel.ERROR);
+                Log("Select node type", LogLevel.ERROR);
                 System.Windows.MessageBox.Show("Select node type");
                 return;
             }
@@ -1889,7 +1921,7 @@ namespace AutoPatcher
             }
         }
 
-        private async void Testfunc(object sender , RoutedEventArgs e)
+        private async void Testfunc(object sender, RoutedEventArgs e)
         {
             //ProcessStart("55.60.231.166", "D:\\main\\bin\\HDSInspector.exe");
             Log("Start patch");
@@ -1953,21 +1985,21 @@ namespace AutoPatcher
         }
 
         private async void btnRunPatch_Click(object sender, RoutedEventArgs e)
-        {            
+        {
             if (SelectedMode == -1)
             {
                 Log("Select a patch node", LogLevel.ERROR);
-                System.Windows.MessageBox.Show("Select a patch node");     
-                
+                System.Windows.MessageBox.Show("Select a patch node");
+
                 return;
             }
 
             var tempres = FilesToCheck.Find(x => x.Contains(ProcessNameToCheck));
             if (string.IsNullOrEmpty(tempres))
             {
-                Log($"Does not including process : {ProcessNameToCheck}",LogLevel.ERROR);                
+                Log($"Does not including process : {ProcessNameToCheck}", LogLevel.ERROR);
                 System.Windows.MessageBox.Show($"Does not including process : {ProcessNameToCheck}");
-                
+
                 return;
             }
 
@@ -1975,7 +2007,7 @@ namespace AutoPatcher
             {
                 Log("No equipment specified", LogLevel.ERROR);
                 System.Windows.MessageBox.Show("No selected mahcine");
-                
+
                 return;
             }
 
@@ -1995,6 +2027,267 @@ namespace AutoPatcher
             //}
         }
 
+        private async void btnSetSchTask_Clicks(object sender, RoutedEventArgs e)
+        {
+            if (IPAddresses.Count == 0)
+            {
+                Log("No equipment specified to fetch logs from.", LogLevel.ERROR);
+                System.Windows.MessageBox.Show("No selected machine.");
+                return;
+            }
+
+            Log($"Attempting to fetch yesterday's logs for {IPAddresses.Count} machine(s).");
+
+            // 1. Create a single folder with today's date.
+            string today = DateTime.Now.ToString("yyyy_MM_dd");
+            string localLogFetchDir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, today);
+            Directory.CreateDirectory(localLogFetchDir);
+
+            string yesterday = DateTime.Now.AddDays(-1).ToString("yyyy_MM_dd");
+
+            // 2. Create a mapping of IP to InspectionUnit before going to the background thread.
+            var ipToInspectionUnitMap = new Dictionary<string, string>();
+            foreach (var item in DataGridItems)
+            {
+                if (!string.IsNullOrEmpty(item.PC1) && !ipToInspectionUnitMap.ContainsKey(item.PC1)) ipToInspectionUnitMap[item.PC1] = item.InspectionUnit;
+                if (!string.IsNullOrEmpty(item.PC2) && !ipToInspectionUnitMap.ContainsKey(item.PC2)) ipToInspectionUnitMap[item.PC2] = item.InspectionUnit;
+                if (!string.IsNullOrEmpty(item.PC3) && !ipToInspectionUnitMap.ContainsKey(item.PC3)) ipToInspectionUnitMap[item.PC3] = item.InspectionUnit;
+                if (!string.IsNullOrEmpty(item.PC4) && !ipToInspectionUnitMap.ContainsKey(item.PC4)) ipToInspectionUnitMap[item.PC4] = item.InspectionUnit;
+                if (!string.IsNullOrEmpty(item.PC5) && !ipToInspectionUnitMap.ContainsKey(item.PC5)) ipToInspectionUnitMap[item.PC5] = item.InspectionUnit;
+                if (!string.IsNullOrEmpty(item.PC6) && !ipToInspectionUnitMap.ContainsKey(item.PC6)) ipToInspectionUnitMap[item.PC6] = item.InspectionUnit;
+            }
+
+            string currentPcType = this.PCType;
+            string currentModeType = this.ModeType;
+            string currentProcessName = this.ProcessNameToCheck;
+            List<string> ipsToProcess = new List<string>(IPAddresses);
+
+            await Task.Run(async () =>
+            {
+                foreach (string ip in ipsToProcess)
+                {
+                    string remotePath = "";
+                    bool pathFound = false;
+
+                    try
+                    {
+                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Finding remote path..."));
+
+                        string strPCtype = currentPcType;
+                        if (currentModeType == "SII" && currentProcessName == "IS.exe") strPCtype += "\\IS";
+                        string diskType = "D";
+
+                        string[] remotePathList =
+                        {
+                            $"\\{ip}\\{strPCtype.ToLower()}",
+                            $"\\{ip}\\{strPCtype}",
+                            $"\\{ip}\\{diskType}\\{strPCtype.ToLower()}",
+                            $"\\{ip}\\{diskType}\\{strPCtype}",
+                            $"\\{ip}\\{diskType.ToLower()}\\{strPCtype.ToLower()}",
+                            $"\\{ip}\\{diskType.ToLower()}\\{strPCtype}",
+                        };
+
+                        ResourceManager rscManager = new ResourceManager("AutoPatcher.Resource.UserInfo", typeof(MainWindow).Assembly);
+                        string id = rscManager.GetString($"{currentModeType.ToUpper()}_{currentPcType.ToUpper()}_ID");
+                        string pw = rscManager.GetString($"{currentModeType.ToUpper()}_{currentPcType.ToUpper()}_PW");
+
+                        foreach (string pathAttempt in remotePathList)
+                        {
+                            ConnectNetworkDrive(pathAttempt, id, pw);
+                            if (Directory.Exists(pathAttempt))
+                            {
+                                remotePath = pathAttempt;
+                                pathFound = true;
+                                await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Found accessible path: {remotePath}"));
+                                break;
+                            }
+                        }
+
+                        if (!pathFound || string.IsNullOrEmpty(remotePath))
+                        {
+                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Could not find any accessible remote path.", LogLevel.ERROR));
+                            continue;
+                        }
+
+                        string remoteLogPath = System.IO.Path.Combine(remotePath, "log");
+                        if (!Directory.Exists(remoteLogPath))
+                        {
+                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Log directory not found at: {remoteLogPath}", LogLevel.WARN));
+                            continue;
+                        }
+
+                        string[] logFiles = Directory.GetFiles(remoteLogPath, $"*{yesterday}*.log");
+
+                        if (logFiles.Length == 0)
+                        {
+                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ No log files found for yesterday ({yesterday}).", LogLevel.INFO));
+                            continue;
+                        }
+
+                        // 3. Get the InspectionUnit name from the map.
+                        ipToInspectionUnitMap.TryGetValue(ip, out string inspectionUnitName);
+                        if (string.IsNullOrEmpty(inspectionUnitName))
+                        {
+                            inspectionUnitName = "UnknownUnit"; // Fallback name
+                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Could not find InspectionUnit name. Using fallback.", LogLevel.WARN));
+                        }
+
+                        int fileCounter = 1;
+                        foreach (string logFile in logFiles)
+                        {
+                            try
+                            {
+                                // 4. Construct the new filename and copy to the single, dated folder.
+                                string newFileName = $"{inspectionUnitName}_{ip.Replace(".", "_")}";
+                                if (logFiles.Length > 1)
+                                {
+                                    newFileName += $"_{fileCounter++}";
+                                }
+                                newFileName += ".log";
+
+                                string destFile = System.IO.Path.Combine(localLogFetchDir, newFileName);
+                                System.IO.File.Copy(logFile, destFile, true);
+                                await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Copied {System.IO.Path.GetFileName(logFile)} to {newFileName}"));
+                            }
+                            catch (Exception ex)
+                            {
+                                await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Failed to copy log file {System.IO.Path.GetFileName(logFile)}: {ex.Message}", LogLevel.ERROR));
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ An error occurred during log fetch: {ex.Message}", LogLevel.ERROR));
+                    }
+                }
+
+                await Dispatcher.InvokeAsync(() => Log($"Finished fetching logs. Files are saved in: {localLogFetchDir}"));
+            });
+        }
+
+        private async void btnSetSchTask_Click(object sender, RoutedEventArgs e)
+        {
+            if (IPAddresses.Count == 0)
+            {
+                Log("No equipment specified to fetch logs from.", LogLevel.ERROR);
+                System.Windows.MessageBox.Show("No selected machine.");
+                return;
+            }
+
+            Log($"Attempting to fetch yesterday's logs for {IPAddresses.Count} machine(s).");
+
+            string localLogFetchDir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GetLogs");
+            Directory.CreateDirectory(localLogFetchDir); // Ensure the directory exists
+
+            string today = DateTime.Now.ToString("yyyy-MM-dd");
+            string yesterday = DateTime.Now.AddDays(-1).ToString("yyyy-MM-dd");
+
+            // Capture UI-thread variables here to avoid cross-thread issues
+            string currentPcType = this.PCType;
+            string currentModeType = this.ModeType;
+            string currentProcessName = this.ProcessNameToCheck;
+            List<string> ipsToProcess = new List<string>(IPAddresses); // Create a copy for thread safety
+
+            await Task.Run(async () =>
+            {
+                foreach (string ip in ipsToProcess)
+                {
+                    string remotePath = "";
+                    bool pathFound = false;
+
+                    try
+                    {
+                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Finding remote path..."));
+
+                        string strPCtype = currentPcType;
+                        if (currentModeType == "SII" && currentProcessName == "IS.exe") strPCtype += "\\IS";
+                        string diskType = "D";
+
+                        string[] remotePathList =
+                        {
+                            $@"\\{ip}\{strPCtype.ToLower()}",
+                            $@"\\{ip}\{strPCtype}",
+                            $@"\\{ip}\{diskType}\{strPCtype.ToLower()}",
+                            $@"\\{ip}\{diskType}\{strPCtype}",
+                            $@"\\{ip}\{diskType.ToLower()}\{strPCtype.ToLower()}",
+                            $@"\\{ip}\{diskType.ToLower()}\{strPCtype}",
+                        };
+
+                        ResourceManager rscManager = new ResourceManager("AutoPatcher.Resource.UserInfo", typeof(MainWindow).Assembly);
+                        string id = rscManager.GetString($"{currentModeType.ToUpper()}_{currentPcType.ToUpper()}_ID");
+                        string pw = rscManager.GetString($"{currentModeType.ToUpper()}_{currentPcType.ToUpper()}_PW");
+
+                        foreach (string pathAttempt in remotePathList)
+                        {
+                            //ConnectNetworkDrive(pathAttempt, id, pw); // This is a blocking call
+
+                            if (Directory.Exists(pathAttempt))
+                            {
+                                remotePath = pathAttempt;
+                                pathFound = true;
+                                await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Found accessible path: {remotePath}"));
+                                break;
+                            }
+                        }
+
+                        if (!pathFound || string.IsNullOrEmpty(remotePath))
+                        {
+                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Could not find any accessible remote path.", LogLevel.ERROR));
+                            continue; // Next IP
+                        }
+
+                        string remoteLogPath = System.IO.Path.Combine(remotePath, "log");
+                        if (!Directory.Exists(remoteLogPath))
+                        {
+                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Log directory not found at: {remoteLogPath}", LogLevel.WARN));
+                            continue; // Next IP
+                        }
+
+                        string[] logFiles = Directory.GetFiles(remoteLogPath, $"*{yesterday}*.log");
+
+                        if (logFiles.Length == 0)
+                        {
+                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ No log files found for yesterday ({yesterday}).", LogLevel.INFO));
+                            continue; // Next IP
+                        }
+
+                        string ipSpecificLocalDir = System.IO.Path.Combine(localLogFetchDir, today); // Sanitize IP for folder name
+                        Directory.CreateDirectory(ipSpecificLocalDir);
+
+                        int copiedCount = 0;
+                        foreach (string logFile in logFiles)
+                        {
+                            try
+                            {                                
+                                string fileName = System.IO.Path.GetFileName(logFile);
+                                fileName = GetInspectionUnitFromIp(ip)+".log";
+                                string destFile = System.IO.Path.Combine(ipSpecificLocalDir, fileName);
+                                System.IO.File.Copy(logFile, destFile, true); // Overwrite if exists
+                                copiedCount++;
+                            }
+                            catch (Exception ex)
+                            {
+                                await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Failed to copy log file {System.IO.Path.GetFileName(logFile)}: {ex.Message}", LogLevel.ERROR));
+                            }
+                        }
+
+                        if (copiedCount > 0)
+                        {
+                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Successfully copied {copiedCount} log file(s) to {ipSpecificLocalDir}"));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ An error occurred during log fetch: {ex.Message}", LogLevel.ERROR));
+                    }
+                }
+
+                await Dispatcher.InvokeAsync(() => Log("Finished fetching logs for all selected machines."));
+            });
+        }
+
+
+
         private T FindParent<T>(DependencyObject child) where T : DependencyObject
         {
             DependencyObject parent = VisualTreeHelper.GetParent(child);
@@ -2012,7 +2305,7 @@ namespace AutoPatcher
         {
             var checkBox = sender as System.Windows.Controls.CheckBox;
             var dataItem = checkBox.DataContext as RowData;
-            
+
             string ip = "";
 
             var sp = (StackPanel)checkBox.Parent;
@@ -2067,14 +2360,14 @@ namespace AutoPatcher
                 else
                 {
                     IPAddresses.Remove(ip);
-                    CellData removeItem = CellDatas.FirstOrDefault(item => item.IP==ip);
+                    CellData removeItem = CellDatas.FirstOrDefault(item => item.IP == ip);
                     CellDatas.Remove(removeItem);
                 }
             }
             System.Action action = delegate
             {
                 lblList.Content = $"Number of selected machine : {IPAddresses.Count}";
-            };            
+            };
             this.Dispatcher.Invoke(action);
         }
 
@@ -2225,10 +2518,10 @@ namespace AutoPatcher
                 }
 
                 if (!string.IsNullOrEmpty(ExcelPath))
-                {                    
+                {
                     InitItems();
                     Log($"Loading...{ExcelPath}");
-                    LoadExcelData(ExcelPath);                    
+                    LoadExcelData(ExcelPath);
                     Log($"Loaded machine list : {ModeType}");
                 }
             }
@@ -2241,7 +2534,7 @@ namespace AutoPatcher
 
                 if (btn.Name.Contains("Main"))
                 {
-                    if(ModeType=="SII")
+                    if (ModeType == "SII")
                     {
                         PCType = "Inline";
                     }
@@ -2249,14 +2542,14 @@ namespace AutoPatcher
                     {
                         PCType = "Main";
                     }
-                    _TypeArray[0] = true;                    
+                    _TypeArray[0] = true;
                     ProcessNameToCheck = "HDSInspector.exe";
                     lblProcName.Content = ProcessNameToCheck;
                 }
 
                 else if (btn.Name.Contains("Vision"))
                 {
-                    if(ModeType=="SII")
+                    if (ModeType == "SII")
                     {
                         PCType = "Inline";
                     }
@@ -2264,7 +2557,7 @@ namespace AutoPatcher
                     {
                         PCType = "Vision";
                     }
-                    _TypeArray[1] = false;                    
+                    _TypeArray[1] = false;
                     ProcessNameToCheck = "IS.exe";
                     lblProcName.Content = ProcessNameToCheck;
                 }
@@ -2282,17 +2575,17 @@ namespace AutoPatcher
             }
             #endregion
 
-            
-            
+
+
         }
 
-        private void cmbType_Selected(object sender,RoutedEventArgs e)
+        private void cmbType_Selected(object sender, RoutedEventArgs e)
         {
             ComboBoxItem item = sender as ComboBoxItem;
             bool isFile = (item.TabIndex == 0) ? true : false;
-            if(isFile)
+            if (isFile)
             {
-                
+
             }
             else
             {
@@ -2300,55 +2593,16 @@ namespace AutoPatcher
             }
         }
 
-        private void btnSetSchTask_Click(object sender, RoutedEventArgs e)
+        private void cmbWaitTime_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            ProcessStartInfo si = new ProcessStartInfo();
-            si.FileName = "schtasks.exe";
-            si.UseShellExecute = false;
-            si.RedirectStandardInput = true;
-            Process run = new Process();
-            string ip = "";
-            string path = "";
-            string diskType = "D";
-            string strPCtype = PCType;
-            try
+            System.Windows.Controls.ComboBox cmb = sender as System.Windows.Controls.ComboBox;
+            if (cmb.SelectedItem is ComboBoxItem selectedItem)
             {
-                for (int i = 0; i < IPAddresses.Count; i++)
+                if (int.TryParse(selectedItem.Content.ToString(), out int parsedTime))
                 {
-                    {
-                        ip = IPAddresses[i];
-                        string[] remotePathList =
-                        {
-                            $"\\\\{ip}\\{strPCtype.ToLower()}",                       // ip : main,vision
-                            $"\\\\{ip}\\{strPCtype}",                                 // ip : Main,Vision
-                            $"\\\\{ip}\\{diskType}\\{strPCtype.ToLower()}",           // ip : D : main,vision
-                            $"\\\\{ip}\\{diskType}\\{strPCtype}",                     // ip : D : Main,Vision
-                            $"\\\\{ip}\\{diskType.ToLower()}\\{strPCtype.ToLower()}", // ip : d : main,vision
-                            $"\\\\{ip}\\{diskType.ToLower()}\\{strPCtype}",           // ip : d : Main,Vision
-                        };
-                        foreach(string rpath in remotePathList)
-                        {
-                            if (Directory.Exists(rpath))
-                            {
-                                path = rpath;
-                                 break;
-                            }
-                        }
-                        Directory.CreateDirectory(path+"\\temp_update");
-                        // isupdater 등록
-                        si.Arguments = string.Format($"/create /s {IPAddresses[i]} /u elf /p vision /tn isupdater /tr D:\\vision\\temp_update\\Updater.exe /sc ONCE /sd 2025/06/01 /st 00:00 /f");
-                        run.StartInfo = si;
-                        run.Start();
-                        Log($"Registered .. {ip}");
-                        Thread.Sleep(500);
-                    }
+                    mWaitingTime = (parsedTime) * 60;
                 }
             }
-            catch
-            {
-                Log($"Failed to register task on {ip}", LogLevel.ERROR);
-            }
-            
         }
 
         private void chkMainAll_Checked(object sender, RoutedEventArgs e)
@@ -2407,6 +2661,9 @@ namespace AutoPatcher
             }
         }
     }
+
+
+
     public class RowData : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
@@ -2467,10 +2724,13 @@ namespace AutoPatcher
 
     } 
 
+
     public class CellData
     {
-        public string IP { get; set; }
         public int ROW { get; set; }
         public int COLUMN { get; set; }
+        public string IP { get; set; }
+        public System.Windows.Media.Brush StatusBrush { get; set; } = System.Windows.Media.Brushes.Transparent; // 기본값은 투명
     }
 }
+
