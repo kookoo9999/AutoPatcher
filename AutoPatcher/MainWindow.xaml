@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:AutoPatcher"
         mc:Ignorable="d"
-        Title="HDS Auto Patcher [ Version 1.2.2 패치로직변경 ]" Height="950" Width="1280">
+        Title="HDS Auto Patcher [ Version 1.2.3 RDP UI 버그 수정 ]" Height="950" Width="1280">
     <Window.Resources>
         <!-- Grouping Data by Group -->
         <CollectionViewSource x:Key="GroupedData" Source="{Binding DataGridItems}">
@@ -40,7 +40,7 @@
                     <RadioButton x:Name="rdCOB" FontWeight="Bold" Foreground="AntiqueWhite"  FontSize="15" VerticalContentAlignment="Center" Content="COB" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[3],Mode=TwoWay}"></RadioButton>
                     <Button x:Name="btnSetSchTask" Click="btnSetSchTask_Click" FontWeight="Bold"  FontSize="15" Content="Get Log" Margin="20,0,0,0"/>
                 </StackPanel>
-                <Label Grid.Column="1" x:Name="lblList" Content="-" FontWeight="Bold" Foreground="AntiqueWhite"  FontSize="15" VerticalContentAlignment="Center" VerticalAlignment="Center" HorizontalContentAlignment="Center"/>
+                <Label Grid.Column="1" x:Name="lblList" Content="{Binding RemainingMachinesText}" FontWeight="Bold" Foreground="AntiqueWhite"  FontSize="15" VerticalContentAlignment="Center" VerticalAlignment="Center" HorizontalContentAlignment="Center"/>
             </Grid>
             <Grid Grid.Row="1">
                 <DataGrid x:Name                        ="DataGrid"
@@ -157,6 +157,20 @@
                             <DataGridTemplateColumn.CellStyle>
                                 <Style TargetType="DataGridCell">
                                     <Setter Property="Background" Value="Gray"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PC1Status}" Value="Complete">
+                                            <Setter Property="Background" Value="DeepSkyBlue"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding PC1Status}" Value="Fail">
+                                            <Setter Property="Background" Value="IndianRed"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding PC1Status}" Value="Waiting">
+                                            <Setter Property="Background" Value="Orange"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding PC1Status}" Value="InProgress">
+                                            <Setter Property="Background" Value="LimeGreen"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
                                 </Style>
                             </DataGridTemplateColumn.CellStyle>
                         </DataGridTemplateColumn>
@@ -187,6 +201,20 @@
                             <DataGridTemplateColumn.CellStyle>
                                 <Style TargetType="DataGridCell">
                                     <Setter Property="Background" Value="Gray"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PC2Status}" Value="Complete">
+                                            <Setter Property="Background" Value="DeepSkyBlue"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding PC2Status}" Value="Fail">
+                                            <Setter Property="Background" Value="IndianRed"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding PC2Status}" Value="Waiting">
+                                            <Setter Property="Background" Value="Orange"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding PC2Status}" Value="InProgress">
+                                            <Setter Property="Background" Value="LimeGreen"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
                                 </Style>
                             </DataGridTemplateColumn.CellStyle>
                         </DataGridTemplateColumn>
@@ -218,6 +246,20 @@
                             <DataGridTemplateColumn.CellStyle>
                                 <Style TargetType="DataGridCell">
                                     <Setter Property="Background" Value="Gray"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PC3Status}" Value="Complete">
+                                            <Setter Property="Background" Value="DeepSkyBlue"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding PC3Status}" Value="Fail">
+                                            <Setter Property="Background" Value="IndianRed"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding PC3Status}" Value="Waiting">
+                                            <Setter Property="Background" Value="Orange"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding PC3Status}" Value="InProgress">
+                                            <Setter Property="Background" Value="LimeGreen"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
                                 </Style>
                             </DataGridTemplateColumn.CellStyle>
                         </DataGridTemplateColumn>
@@ -249,6 +291,20 @@
                             <DataGridTemplateColumn.CellStyle>
                                 <Style TargetType="DataGridCell">
                                     <Setter Property="Background" Value="Gray"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PC4Status}" Value="Complete">
+                                            <Setter Property="Background" Value="DeepSkyBlue"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding PC4Status}" Value="Fail">
+                                            <Setter Property="Background" Value="IndianRed"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding PC4Status}" Value="Waiting">
+                                            <Setter Property="Background" Value="Orange"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding PC4Status}" Value="InProgress">
+                                            <Setter Property="Background" Value="LimeGreen"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
                                 </Style>
                             </DataGridTemplateColumn.CellStyle>
                         </DataGridTemplateColumn>
@@ -279,6 +335,20 @@
                             <DataGridTemplateColumn.CellStyle>
                                 <Style TargetType="DataGridCell">
                                     <Setter Property="Background" Value="Gray"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PC5Status}" Value="Complete">
+                                            <Setter Property="Background" Value="DeepSkyBlue"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding PC5Status}" Value="Fail">
+                                            <Setter Property="Background" Value="IndianRed"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding PC5Status}" Value="Waiting">
+                                            <Setter Property="Background" Value="Orange"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding PC5Status}" Value="InProgress">
+                                            <Setter Property="Background" Value="LimeGreen"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
                                 </Style>
                             </DataGridTemplateColumn.CellStyle>
                         </DataGridTemplateColumn>
@@ -309,6 +379,20 @@
                             <DataGridTemplateColumn.CellStyle>
                                 <Style TargetType="DataGridCell">
                                     <Setter Property="Background" Value="Gray"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PC6Status}" Value="Complete">
+                                            <Setter Property="Background" Value="DeepSkyBlue"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding PC6Status}" Value="Fail">
+                                            <Setter Property="Background" Value="IndianRed"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding PC6Status}" Value="Waiting">
+                                            <Setter Property="Background" Value="Orange"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding PC6Status}" Value="InProgress">
+                                            <Setter Property="Background" Value="LimeGreen"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
                                 </Style>
                             </DataGridTemplateColumn.CellStyle>
                         </DataGridTemplateColumn>

@@ -45,8 +45,25 @@ namespace AutoPatcher
     /// <summary>
     /// MainWindow.xaml에 대한 상호 작용 논리
     /// </summary>
-    public partial class MainWindow : System.Windows.Window
+    public partial class MainWindow : System.Windows.Window, INotifyPropertyChanged
     {
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private string _remainingMachinesText = "-";
+        public string RemainingMachinesText
+        {
+            get { return _remainingMachinesText; }
+            set
+            {
+                _remainingMachinesText = value;
+                OnPropertyChanged(nameof(RemainingMachinesText));
+            }
+        }
         #region member
 
         public int mWaitingTime = 3600;
@@ -184,6 +201,7 @@ namespace AutoPatcher
         public MainWindow()
         {
             InitializeComponent();
+            this.DataContext = this;
             DataGridItems = new ObservableCollection<RowData>();
             CellDatas = new Collection<CellData>();
             FileList = new ObservableCollection<string>();
@@ -311,103 +329,39 @@ namespace AutoPatcher
         public void SetComplete(string ip)
         {
             IPAddresses.Remove(ip);
-            CellData targetCell = CellDatas.FirstOrDefault(item => item.IP == ip);
-            if (targetCell != null)
-            {
-                targetCell.StatusBrush = System.Windows.Media.Brushes.DeepSkyBlue;
-                ChangeCellColor(targetCell.ROW, targetCell.COLUMN, targetCell.StatusBrush);
-            }
+            UpdatePCStatus(ip, PatchStatus.Complete);
         }
 
         public void SetFail(string ip)
         {
-            CellData targetCell = CellDatas.FirstOrDefault(item => item.IP == ip);
-            if (targetCell != null)
-            {
-                targetCell.StatusBrush = System.Windows.Media.Brushes.IndianRed;
-                ChangeCellColor(targetCell.ROW, targetCell.COLUMN, targetCell.StatusBrush);
-            }
+            UpdatePCStatus(ip, PatchStatus.Fail);
         }
 
         public void SetWaiting(string ip)
         {
-            CellData targetCell = CellDatas.FirstOrDefault(item => item.IP == ip);
-            if (targetCell != null)
+            UpdatePCStatus(ip, PatchStatus.Waiting);
+        }
+
+        private void UpdatePCStatus(string ip, PatchStatus status)
+        {
+            if (string.IsNullOrEmpty(ip)) return;
+
+            var rowData = DataGridItems.FirstOrDefault(row =>
+                row.PC1 == ip || row.PC2 == ip || row.PC3 == ip ||
+                row.PC4 == ip || row.PC5 == ip || row.PC6 == ip);
+
+            if (rowData != null)
             {
-                targetCell.StatusBrush = System.Windows.Media.Brushes.Orange;
-                ChangeCellColor(targetCell.ROW, targetCell.COLUMN, targetCell.StatusBrush);
+                if (rowData.PC1 == ip) rowData.PC1Status = status;
+                else if (rowData.PC2 == ip) rowData.PC2Status = status;
+                else if (rowData.PC3 == ip) rowData.PC3Status = status;
+                else if (rowData.PC4 == ip) rowData.PC4Status = status;
+                else if (rowData.PC5 == ip) rowData.PC5Status = status;
+                else if (rowData.PC6 == ip) rowData.PC6Status = status;
             }
         }
 
-        private void ChangeCellColor(string val, SolidColorBrush color)
-        {
-            // DataGrid의 각 행과 셀을 순회            
-            foreach (var row in this.DataGrid.Items)
-            {
-                var dataGridRow = (DataGridRow)this.DataGrid.ItemContainerGenerator.ContainerFromItem(row);
-                if (dataGridRow == null) continue;
-
-                foreach (System.Windows.Controls.DataGridCell cell in GetVisualChildren<System.Windows.Controls.DataGridCell>(dataGridRow))
-                {
-                    var column = this.DataGrid.Columns[cell.Column.DisplayIndex];
-
-                    // 셀의 내용
-                    var cellContent = column.GetCellContent(row);
-                    if (cellContent is ContentPresenter cp)
-                    {
-                        var sp = cp.ContentTemplate.FindName("StackPanel", cp) as StackPanel;
-                        if (sp != null)
-                        {
-                            var textBlock = sp.Children.OfType<TextBlock>().FirstOrDefault();
-                            if (textBlock != null && textBlock.Text == val)
-                            {
-                                // 텍스트가 일치하면 셀 배경 색상 변경
-                                cell.Background = color; // 원하는 색상
-                                cell.Focus();
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-
-
-        }
-
-        private void ChangeCellColor(int row, int col, System.Windows.Media.Brush color)
-        {
-            var cell = GetCell(row, col);
-            if (cell != null)
-            {
-                cell.Background = color;
-                cell.Focus();
-            }
-        }
-
-        private System.Windows.Controls.DataGridCell GetCell(int rowIndex, int columnIndex)
-        {
-            var row = (DataGridRow)DataGrid.ItemContainerGenerator.ContainerFromIndex(rowIndex);
-            if (row == null) return null;
-
-            var cell = DataGrid.Columns[columnIndex].GetCellContent(row).Parent as System.Windows.Controls.DataGridCell;
-            return cell;
-        }
-
-        private IEnumerable<T> GetVisualChildren<T>(DependencyObject depObj) where T : DependencyObject
-        {
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(depObj); i++)
-            {
-                var child = VisualTreeHelper.GetChild(depObj, i);
-                if (child is T)
-                    yield return (T)child;
-
-                foreach (var childOfChild in GetVisualChildren<T>(child))
-                {
-                    yield return childOfChild;
-                }
-            }
-        }
+        
 
         private void LoadExcelData(string filePath)
         {
@@ -818,7 +772,7 @@ namespace AutoPatcher
 
             await Task.WhenAll(patchTasks);
 
-            await Dispatcher.InvokeAsync(() => lblList.Content = $"Number of left machine : {IPAddresses.Count}");
+            await Dispatcher.InvokeAsync(() => RemainingMachinesText = $"Number of left machine : {IPAddresses.Count}");
 
             await Dispatcher.InvokeAsync(() => Log("All patching operations have been attempted."));
             Debug.WriteLine("모든 작업이 완료되었습니다.");
@@ -856,16 +810,14 @@ namespace AutoPatcher
                 await Dispatcher.InvokeAsync(() =>
                 {
                     Log($"[{currentIp}] _ Try to access..."); //
-                                                              // lblIP.Content = currentIp; // 병렬 처리 시 의미가 모호할 수 있음
-                                                              // pbstatusBar.Value = 0; // 개별 IP 진행률 표시 방법 재고 필요
-                                                              // txtStatusBar.Text = "0.0%"; //
+                    UpdatePCStatus(currentIp, PatchStatus.InProgress); //
 
-                    CellData cellData = CellDatas.FirstOrDefault(item => item.IP == currentIp); //
-                    if (cellData != null)
-                    {
-                        ChangeCellColor(cellData.ROW, cellData.COLUMN, System.Windows.Media.Brushes.LimeGreen); //
-                                                                                                                // GetCell(cellData.ROW, cellData.COLUMN)?.Focus(); // 포커싱은 UI를 혼란스럽게 할 수 있음
-                    }
+                    //CellData cellData = CellDatas.FirstOrDefault(item => item.IP == currentIp); //
+                    //if (cellData != null)
+                    //{
+                    //    ChangeCellColor(cellData.ROW, cellData.COLUMN, System.Windows.Media.Brushes.LimeGreen); //
+                    //                                                                                            // GetCell(cellData.ROW, cellData.COLUMN)?.Focus(); // 포커싱은 UI를 혼란스럽게 할 수 있음
+                    //}
                 });
                 await Task.Delay(100); //
 
@@ -2366,7 +2318,7 @@ namespace AutoPatcher
             }
             System.Action action = delegate
             {
-                lblList.Content = $"Number of selected machine : {IPAddresses.Count}";
+                RemainingMachinesText = $"Number of selected machine : {IPAddresses.Count}";
             };
             this.Dispatcher.Invoke(action);
         }
@@ -2664,6 +2616,15 @@ namespace AutoPatcher
 
 
 
+    public enum PatchStatus
+    {
+        None,
+        Waiting,
+        InProgress,
+        Complete,
+        Fail
+    }
+
     public class RowData : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
@@ -2675,38 +2636,12 @@ namespace AutoPatcher
         private bool v5Selected;
         private bool mainSelected;
 
-        public bool MainSelected
-        {
-            get { return mainSelected; }
-            set { mainSelected = value; OnPropertyChanged(nameof(MainSelected)); }
-        }
-        public bool V1Selected
-        {
-            get { return v1Selected; }
-            set { v1Selected = value; OnPropertyChanged(nameof(V1Selected)); }
-        }
-        public bool V2Selected
-        {
-            get { return v2Selected; }
-            set { v2Selected = value; OnPropertyChanged(nameof(V2Selected)); }
-        }
-        public bool V3Selected
-        {
-            get { return v3Selected; }
-            set { v3Selected = value; OnPropertyChanged(nameof(V3Selected)); }
-        }
-
-        public bool V4Selected
-        {
-            get { return v4Selected; }
-            set { v4Selected = value; OnPropertyChanged(nameof(V4Selected)); }
-        }
-
-        public bool V5Selected
-        {
-            get { return v5Selected; }
-            set { v5Selected = value; OnPropertyChanged(nameof(V5Selected)); }
-        }
+        public bool MainSelected { get => mainSelected; set { mainSelected = value; OnPropertyChanged(nameof(MainSelected)); } }
+        public bool V1Selected { get => v1Selected; set { v1Selected = value; OnPropertyChanged(nameof(V1Selected)); } }
+        public bool V2Selected { get => v2Selected; set { v2Selected = value; OnPropertyChanged(nameof(V2Selected)); } }
+        public bool V3Selected { get => v3Selected; set { v3Selected = value; OnPropertyChanged(nameof(V3Selected)); } }
+        public bool V4Selected { get => v4Selected; set { v4Selected = value; OnPropertyChanged(nameof(V4Selected)); } }
+        public bool V5Selected { get => v5Selected; set { v5Selected = value; OnPropertyChanged(nameof(V5Selected)); } }
 
         public string Group { get; set; }
         public string InspectionUnit { get; set; }
@@ -2717,20 +2652,32 @@ namespace AutoPatcher
         public string PC5 { get; set; }
         public string PC6 { get; set; }
 
+        private PatchStatus _pc1Status;
+        private PatchStatus _pc2Status;
+        private PatchStatus _pc3Status;
+        private PatchStatus _pc4Status;
+        private PatchStatus _pc5Status;
+        private PatchStatus _pc6Status;
+
+        public PatchStatus PC1Status { get => _pc1Status; set { _pc1Status = value; OnPropertyChanged(nameof(PC1Status)); } }
+        public PatchStatus PC2Status { get => _pc2Status; set { _pc2Status = value; OnPropertyChanged(nameof(PC2Status)); } }
+        public PatchStatus PC3Status { get => _pc3Status; set { _pc3Status = value; OnPropertyChanged(nameof(PC3Status)); } }
+        public PatchStatus PC4Status { get => _pc4Status; set { _pc4Status = value; OnPropertyChanged(nameof(PC4Status)); } }
+        public PatchStatus PC5Status { get => _pc5Status; set { _pc5Status = value; OnPropertyChanged(nameof(PC5Status)); } }
+        public PatchStatus PC6Status { get => _pc6Status; set { _pc6Status = value; OnPropertyChanged(nameof(PC6Status)); } }
+
         protected void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
-
-    } 
-
+    }
 
     public class CellData
     {
         public int ROW { get; set; }
         public int COLUMN { get; set; }
         public string IP { get; set; }
-        public System.Windows.Media.Brush StatusBrush { get; set; } = System.Windows.Media.Brushes.Transparent; // 기본값은 투명
+        public PatchStatus Status { get; set; } = PatchStatus.None;
     }
 }
 
