@@ -47,6 +47,7 @@ namespace AutoPatcher
     /// </summary>
     public partial class MainWindow : System.Windows.Window, INotifyPropertyChanged
     {
+        private SemaphoreSlim _fileCopySemaphore = new SemaphoreSlim(10); // 동시 파일 복사 작업 수를 10개로 제한
         public event PropertyChangedEventHandler PropertyChanged;
 
         protected void OnPropertyChanged(string propertyName)
@@ -607,9 +608,9 @@ namespace AutoPatcher
             int totalIPs = IPAddresses.Count;
             int completedIPs = 0;
 
-            // 동시 실행 작업 수 제한 (선택 사항)
-            // int maxConcurrentTasks = 5; // 예: 동시에 5개 IP만 처리
-            // SemaphoreSlim semaphore = new SemaphoreSlim(maxConcurrentTasks);
+            //동시 실행 작업 수 제한(선택 사항)
+             //int maxConcurrentTasks = 10; // 예: 동시에 5개 IP만 처리
+            //SemaphoreSlim semaphore = new SemaphoreSlim(maxConcurrentTasks);
 
             #region 이전방식
             //foreach (string ip in IPAddresses)
@@ -754,7 +755,7 @@ namespace AutoPatcher
 
             foreach (string ip in IPAddresses)
             {
-                // await semaphore.WaitAsync(); // 동시 작업 수 제한 시 사용
+                 //await semaphore.WaitAsync(); // 동시 작업 수 제한 시 사용
 
                 patchTasks.Add(ProcessSingleIPAsync(ip, totalIPs, () =>
                 {
@@ -766,7 +767,7 @@ namespace AutoPatcher
                         pbtotalBar.Value = currentTotalProgress;
                         txttotalBar.Text = currentTotalProgress.ToString("0.0") + "%";
                     });
-                    // semaphore.Release(); // 동시 작업 수 제한 시 사용
+                    //semaphore.Release(); // 동시 작업 수 제한 시 사용
                 }));
             }
 
@@ -1069,9 +1070,17 @@ namespace AutoPatcher
                     }
 
                     // SourceDirectory의 모든 파일과 폴더를 remoteFolderPath (temp_update)로 복사
-                    //await Task.Run(() => CopyAllFilesAndFolders(sourceDirectory, remoteFolderPath));
-                    await Task.Run(() => CopyFolder(sourceDirectory, remoteFolderPath));
-                    await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ All patch files copied to temp_update. External program will now execute Updater.exe."));
+                    await _fileCopySemaphore.WaitAsync(); // 동시 파일 복사 제한
+                    try
+                    {
+                        //await Task.Run(() => CopyAllFilesAndFolders(sourceDirectory, remoteFolderPath));
+                        await Task.Run(() => CopyFolder(sourceDirectory, remoteFolderPath));
+                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ All patch files copied to temp_update. External program will now execute Updater.exe."));
+                    }
+                    finally
+                    {
+                        _fileCopySemaphore.Release(); // 제한 해제
+                    }
 
                     #region IS 플래그 생성 로직
                     if (ProcessNameToCheck == "IS.exe")
