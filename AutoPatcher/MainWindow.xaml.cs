@@ -865,6 +865,9 @@ namespace AutoPatcher
 
                     if (!connectionApiSuccess)
                     {
+                        connectionApiSuccess = ConnectNetworkDrive(pathAttempt, "eav", pw);
+                        if (!connectionApiSuccess) connectionApiSuccess = ConnectNetworkDrive(pathAttempt, "slf", pw);
+                        
                         // WNetUseConnection API 호출이 명시적으로 성공하지 않았음을 로그로 남깁니다.
                         // (예: 이미 연결됨, 다른 오류 등). 그러나 경로는 여전히 접근 가능할 수 있습니다.
                         await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _ ConnectNetworkDrive API for '{pathAttempt}' reported an issue or no new connection was made. Proceeding to check path accessibility.", LogLevel.INFO));
@@ -1097,8 +1100,8 @@ namespace AutoPatcher
                                 // 2. 해당 행의 PC1 IP(main)
                                 string mainIP = currentRowData.PC1;
                                 // ================== d$, D$ 모두 처리하도록 수정 ==================
-                                string mainRemotePath_D = $"\\\\{mainIP}\\D$";
-                                string mainRemotePath_d = $"\\\\{mainIP}\\d$";
+                                string mainRemotePath_D = $"\\\\{mainIP}\\D";
+                                string mainRemotePath_d = $"\\\\{mainIP}\\d";
                                 string actualMainRemotePath = null;
 
                                 if (Directory.Exists(mainRemotePath_D))
