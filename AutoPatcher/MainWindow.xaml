@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:AutoPatcher"
         mc:Ignorable="d"
-        Title="HDS Auto Patcher [ Version 1.2.5 IS 계정추가 ]" Height="950" Width="1280">
+        Title="HDS Auto Patcher [ Version 1.2.6 Log수정 ]" Height="950" Width="1280">
     <Window.Resources>
         <!-- Grouping Data by Group -->
         <CollectionViewSource x:Key="GroupedData" Source="{Binding DataGridItems}">
@@ -38,7 +38,7 @@
                     <RadioButton x:Name="rdSII" FontWeight="Bold" Foreground="AntiqueWhite"  FontSize="15" VerticalContentAlignment="Center" Content="SII" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[1],Mode=TwoWay}"></RadioButton>
                     <RadioButton x:Name="rdBGA" FontWeight="Bold" Foreground="AntiqueWhite"  FontSize="15" VerticalContentAlignment="Center" Content="BGA" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[2],Mode=TwoWay}"></RadioButton>
                     <RadioButton x:Name="rdCOB" FontWeight="Bold" Foreground="AntiqueWhite"  FontSize="15" VerticalContentAlignment="Center" Content="COB" Margin="5,5,0,0" GroupName="Mode" Checked="Radiobutton_Checked" IsChecked="{Binding Path=ModeArray[3],Mode=TwoWay}"></RadioButton>
-                    <Button x:Name="btnSetSchTask" Click="btnSetSchTask_Click" FontWeight="Bold"  FontSize="15" Content="Get Log" Margin="20,0,0,0" Visibility="Hidden"/>
+                    <Button x:Name="btnSetSchTask" Click="btnSetSchTask_Click" FontWeight="Bold"  FontSize="15" Content="Get Log" Margin="20,0,0,0" Visibility="Visible"/>
                 </StackPanel>
                 <Label Grid.Column="1" x:Name="lblList" Content="{Binding RemainingMachinesText}" FontWeight="Bold" Foreground="AntiqueWhite"  FontSize="15" VerticalContentAlignment="Center" VerticalAlignment="Center" HorizontalContentAlignment="Center"/>
             </Grid>

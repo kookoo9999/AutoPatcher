@@ -269,34 +269,13 @@ namespace AutoPatcher
 
         #region Update result
 
-        private void Log_o(string msg, LogLevel level = LogLevel.INFO)
-        {
-            string text = $"[{DateTime.Now.ToString("g")}] [{GetStringLogLevel(level)}] : {msg}\n";
-
-            Run run = new Run(text);
-
-            //LogBox.AppendText(text);            
-            if (level == LogLevel.INFO || level == LogLevel.DEBUG)
-            {
-                run.Foreground = System.Windows.Media.Brushes.AntiqueWhite;
-                //SetMessage(msg);
-            }
-            else if (level == LogLevel.ERROR || level == LogLevel.WARN)
-            {
-                if (level == LogLevel.WARN) run.Foreground = System.Windows.Media.Brushes.Orange;
-                else run.Foreground = System.Windows.Media.Brushes.Red;
-                //SetWarnning(msg);
-            }
-            LogBox.Inlines.Add(run);
-            LogScroll.ScrollToEnd();
-
-            return;
-        }
-
         private void Log(string msg, LogLevel level = LogLevel.INFO)
         {
             string text = $"[{DateTime.Now.ToString("g")}] [{GetStringLogLevel(level)}] : {msg}\n"; //
             Run run = new Run(text); //
+
+            // Log to file
+            WriteLogToFile(text);
 
             if (level == LogLevel.INFO || level == LogLevel.DEBUG) //
             {
@@ -313,6 +292,27 @@ namespace AutoPatcher
                 LogBox.Inlines.Add(run);
                 LogScroll.ScrollToEnd();
             });
+        }
+
+        private void WriteLogToFile(string logMessage)
+        {
+            try
+            {
+                string logDirectory = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs");
+                if (!Directory.Exists(logDirectory))
+                {
+                    Directory.CreateDirectory(logDirectory);
+                }
+
+                string logFilePath = System.IO.Path.Combine(logDirectory, $"AutoPatcher_Log_{DateTime.Now.ToString("yyyyMMdd")}.txt");
+                System.IO.File.AppendAllText(logFilePath, logMessage);
+            }
+            catch (Exception ex)
+            {
+                // If logging to file fails, we can't log it to LogBox easily without causing a loop.
+                // For now, just write to Debug output.
+                Debug.WriteLine($"Failed to write log to file: {ex.Message}");
+            }
         }
 
         public void SetMessage(string msg)
@@ -785,9 +785,8 @@ namespace AutoPatcher
             {
                 return null;
             }
-
-            // DataGridItems 컬렉션에서 IP 주소와 일치하는 첫 번째 행(RowData)을 찾습니다.
-            // LINQ의 FirstOrDefault를 사용하면 코드를 간결하게 작성할 수 있습니다.
+            
+            // DataGridItems 컬렉션에서 IP 주소와 일치하는 첫 번째 행(RowData)을 반환            
             RowData foundRow = DataGridItems.FirstOrDefault(row =>
                 row.PC1 == ip ||
                 row.PC2 == ip ||
@@ -796,8 +795,7 @@ namespace AutoPatcher
                 row.PC5 == ip ||
                 row.PC6 == ip);
 
-            // 일치하는 행을 찾았다면 해당 행의 InspectionUnit 값을 반환하고,
-            // 찾지 못했다면 null을 반환합니다.
+            // 일치하는 행을 찾았다면 해당 행의 InspectionUnit 값을 반환            
             return foundRow?.InspectionUnit;
         }
 
@@ -809,8 +807,8 @@ namespace AutoPatcher
             try
             {
                 await Dispatcher.InvokeAsync(() =>
-                {
-                    Log($"[{currentIp}] _ Try to access..."); //
+                {                    
+                    Log($"[{GetInspectionUnitFromIp(ip)}] _ Try to access..."); //
                     UpdatePCStatus(currentIp, PatchStatus.InProgress); //
 
                     //CellData cellData = CellDatas.FirstOrDefault(item => item.IP == currentIp); //
@@ -826,12 +824,12 @@ namespace AutoPatcher
                 {
                     await Dispatcher.InvokeAsync(() =>
                     {
-                        Log($"[{currentIp}] _ No response", LogLevel.ERROR); //
+                        Log($"[{GetInspectionUnitFromIp(currentIp)}] _ No response", LogLevel.ERROR); //
                         SetFail(currentIp); //
                     });
                     return;
                 }
-                await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _ Ping success")); //
+                await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(currentIp)}] _ Ping success")); //
 
                 // 경로 설정 및 연결 로직 (기존과 유사, 단 ConnectNetworkDrive는 스레드 안전하게 수정되었다고 가정)
                 // ... (ConnectNetworkDrive, Directory.Exists 등 호출 부분)
@@ -870,11 +868,11 @@ namespace AutoPatcher
                         
                         // WNetUseConnection API 호출이 명시적으로 성공하지 않았음을 로그로 남깁니다.
                         // (예: 이미 연결됨, 다른 오류 등). 그러나 경로는 여전히 접근 가능할 수 있습니다.
-                        await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _ ConnectNetworkDrive API for '{pathAttempt}' reported an issue or no new connection was made. Proceeding to check path accessibility.", LogLevel.INFO));
+                        await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(currentIp)}] _ ConnectNetworkDrive API for '{pathAttempt}' reported an issue or no new connection was made. Proceeding to check path accessibility.", LogLevel.INFO));
                     }
                     else
                     {
-                        await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _ ConnectNetworkDrive API for '{pathAttempt}' reported success."));
+                        await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(currentIp)}] _ ConnectNetworkDrive API for '{pathAttempt}' reported success."));
                     }
 
                     // 2. 경로 존재 유무 및 접근 가능성 확인 
@@ -884,20 +882,20 @@ namespace AutoPatcher
                         if (Directory.Exists(pathAttempt))
                         {
                             remotePath = pathAttempt; // 접근 가능한 경로를 찾음
-                            await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _ Successfully accessed and set remote path: [{remotePath}]"));
+                            await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(currentIp)}] _ Successfully accessed and set remote path: [{remotePath}]"));
                             pathFound = true;
                             break; // 유효한 경로를 찾았으므로 루프 종료
                         }
                         else
                         {
                             // 해당 경로가 존재하지 않거나 접근할 수 없음을 로그로 남깁니다.
-                            await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _ Path '{pathAttempt}' not found or not accessible.", LogLevel.INFO));
+                            await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(currentIp)}] _ Path '{pathAttempt}' not found or not accessible.", LogLevel.INFO));
                         }
                     }
                     catch (Exception ex)
                     {
                         // Directory.Exists 중 예외 발생 시 (네트워크 오류 등)
-                        await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _ Exception while checking Directory.Exists for '{pathAttempt}': {ex.Message}", LogLevel.WARN));
+                        await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(currentIp)}] _ Exception while checking Directory.Exists for '{pathAttempt}': {ex.Message}", LogLevel.WARN));
                     }
                 }
 
@@ -905,7 +903,7 @@ namespace AutoPatcher
                 {
                     await Dispatcher.InvokeAsync(() =>
                     {
-                        Log($"[{currentIp}] _ CRITICAL: No accessible remote path found after trying all candidates. Patching for this IP will be skipped.", LogLevel.ERROR);
+                        Log($"[{GetInspectionUnitFromIp(currentIp)}] _ CRITICAL: No accessible remote path found after trying all candidates. Patching for this IP will be skipped.", LogLevel.ERROR);
                         SetFail(currentIp); //
                     });
                     // onIpCompletedCallback는 ProcessSingleIPAsync의 finally 블록에서 호출되므로 여기서 return해도 문제없음
@@ -925,7 +923,7 @@ namespace AutoPatcher
                 {
                     await Dispatcher.InvokeAsync(() =>
                     {
-                        Log($"[{currentIp}] _ patch complete"); //
+                        Log($"[{GetInspectionUnitFromIp(currentIp)}] _ patch complete"); //
                         SetComplete(currentIp); //
                     });
 
@@ -938,7 +936,7 @@ namespace AutoPatcher
                 {
                     await Dispatcher.InvokeAsync(() =>
                     {
-                        Log($"[{currentIp}] _ patch failed", LogLevel.WARN); //
+                        Log($"[{GetInspectionUnitFromIp(currentIp)}] _ patch failed", LogLevel.WARN); //
                         SetFail(currentIp); //
                     });
                 }
@@ -982,17 +980,17 @@ namespace AutoPatcher
                             else
                             {
                                 // 만약 RowData 내에서 해당 IP를 가진 PC 속성을 찾지 못한 경우 (데이터 불일치 등)
-                                Log($"[{currentIp}] Could not find matching PC property in RowData to uncheck checkbox for IP {currentIp} in row {cellInfoForUncheck.ROW}.", LogLevel.WARN);
+                                Log($"[{GetInspectionUnitFromIp(currentIp)}] Could not find matching PC property in RowData to uncheck checkbox for IP {currentIp} in row {cellInfoForUncheck.ROW}.", LogLevel.WARN);
                             }
                         }
                         else
                         {
-                            Log($"[{currentIp}] Invalid row index {cellInfoForUncheck.ROW} for IP {currentIp} when trying to uncheck checkbox.", LogLevel.WARN);
+                            Log($"[{GetInspectionUnitFromIp(currentIp)}] Invalid row index {cellInfoForUncheck.ROW} for IP {currentIp} when trying to uncheck checkbox.", LogLevel.WARN);
                         }
                     }
                     else
                     {
-                        Log($"[{currentIp}] Could not find CellData for IP {currentIp} to uncheck checkbox.", LogLevel.WARN);
+                        Log($"[{GetInspectionUnitFromIp(currentIp)}] Could not find CellData for IP {currentIp} to uncheck checkbox.", LogLevel.WARN);
                     }
                 });
                 #endregion
@@ -1001,7 +999,7 @@ namespace AutoPatcher
             {
                 await Dispatcher.InvokeAsync(() =>
                 {
-                    Log($"[{currentIp}] _ Error occurred: {ex.Message}", LogLevel.ERROR); //
+                    Log($"[{GetInspectionUnitFromIp(currentIp)}] _ Error occurred: {ex.Message}", LogLevel.ERROR); //
                     SetFail(currentIp); //
                 });
             }
@@ -1032,24 +1030,24 @@ namespace AutoPatcher
                     // 프로그램 실행 중 확인 및 종료 대기 (WaitForProcessToExitAsync로 변경)
                     if (IsProgramRunning(ip, processNameToCheck)) //
                     {
-                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ {processNameToCheck} is running : Waiting for exit ...")); //
+                        await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ {processNameToCheck} is running : Waiting for exit ...")); //
                         await WaitForProcessToExitAsync(ip, processNameToCheck, 120); // 수정된 메서드 호출
                     }
                     else
                     {
-                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ [{processNameToCheck}] is not running. Try to patch..")); //
+                        await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ [{processNameToCheck}] is not running. Try to patch..")); //
                     }
 
                     // 백업 (CheckBackupFolderAsync로 변경)
                     foreach (string strBackUpPath in backupPathList)
                     {
-                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ [{strBackUpPath}] back up..")); //
+                        await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ [{strBackUpPath}] back up..")); //
                         if (!await CheckBackupFolderAsync(ip, strBackUpPath, remoteBackupPath)) // 수정된 메서드 호출
                         {
-                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ {strBackUpPath} backup failed or path doesn't exist", LogLevel.ERROR)); //
+                            await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ {strBackUpPath} backup failed or path doesn't exist", LogLevel.ERROR)); //
                             return false;
                         }
-                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ [{strBackUpPath}] Backup successfully!")); //
+                        await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ [{strBackUpPath}] Backup successfully!")); //
                     }
 
                     // 폴더 생성
@@ -1078,7 +1076,7 @@ namespace AutoPatcher
                     {
                         //await Task.Run(() => CopyAllFilesAndFolders(sourceDirectory, remoteFolderPath));
                         await Task.Run(() => CopyFolder(sourceDirectory, remoteFolderPath));
-                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ All patch files copied to temp_update. External program will now execute Updater.exe."));
+                        await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ All patch files copied to temp_update. External program will now execute Updater.exe."));
                     }
                     finally
                     {
@@ -1118,22 +1116,22 @@ namespace AutoPatcher
                                 {
                                     string flagFilePath = System.IO.Path.Combine(actualMainRemotePath, "isupdate.flag");
                                     System.IO.File.Create(flagFilePath).Close(); // 빈 플래그 파일 생성
-                                    await Dispatcher.InvokeAsync(() => Log($"[{ip}] --> Created 'isupdate.flag' on PC1 ({mainIP})."));
+                                    await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] --> Created 'isupdate.flag' on PC1 ({mainIP})."));
                                 }
                                 else
                                 {
-                                    await Dispatcher.InvokeAsync(() => Log($"[{ip}] --> Path on PC1 not found (tried D$ and d$): {mainRemotePath_D}", LogLevel.WARN));
+                                    await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] --> Path on PC1 not found (tried D$ and d$): {mainRemotePath_D}", LogLevel.WARN));
                                 }
                             }
                             else
                             {
-                                await Dispatcher.InvokeAsync(() => Log($"[{ip}] --> Could not find PC1 IP for this group. Flag creation skipped.", LogLevel.WARN));
+                                await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] --> Could not find PC1 IP for this group. Flag creation skipped.", LogLevel.WARN));
                             }
                         }
                         catch (Exception ex)
                         {
                             // 플래그 생성 실패가 전체 패치 결과에 영향을 주지 않도록 예외 처리
-                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] --> FAILED to create 'isupdate.flag' on PC1. Error: {ex.Message}", LogLevel.ERROR));
+                            await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] --> FAILED to create 'isupdate.flag' on PC1. Error: {ex.Message}", LogLevel.ERROR));
                         }
                     }
                     #endregion
@@ -1144,12 +1142,12 @@ namespace AutoPatcher
 
                     if (updateSuccess)
                     {
-                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Updater.exe reported success."));
+                        await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ Updater.exe reported success."));
                         return true;
                     }
                     else
                     {
-                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Updater.exe did not report success within the timeout.", LogLevel.ERROR));
+                        await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ Updater.exe did not report success within the timeout.", LogLevel.ERROR));
                         return false;
                     }
                 }
@@ -1183,12 +1181,12 @@ namespace AutoPatcher
 
                         if (updateNeeded)
                         {
-                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Updating: {fileName}."));
+                            await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ Updating: {fileName}."));
                             await ReplaceFileAsync(ip, remoteFolderPath, fileName, localFilePath); // 수정된 메서드 호출
                         }
                         else
                         {
-                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Skip (up-to-date): {fileName}")); //
+                            await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ Skip (up-to-date): {fileName}")); //
                         }
                     }
                     return true;
@@ -1196,7 +1194,7 @@ namespace AutoPatcher
             }
             catch (Exception ex)
             {
-                await Dispatcher.InvokeAsync(() => Log($"[{ip}] Error in PatchInternalAsync: {ex.Message}", LogLevel.ERROR)); //
+                await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] Error in PatchInternalAsync: {ex.Message}", LogLevel.ERROR)); //
                 return false;
             }
         }
@@ -2138,13 +2136,10 @@ namespace AutoPatcher
                 return;
             }
 
-            Log($"Attempting to fetch yesterday's logs for {IPAddresses.Count} machine(s).");
+            Log($"Attempting to fetch logs for the last 30 days for {IPAddresses.Count} machine(s).");
 
             string localLogFetchDir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GetLogs");
-            Directory.CreateDirectory(localLogFetchDir); // Ensure the directory exists
-
-            string today = DateTime.Now.ToString("yyyy-MM-dd");
-            string yesterday = DateTime.Now.AddDays(-1).ToString("yyyy-MM-dd");
+            Directory.CreateDirectory(localLogFetchDir); // Ensure the base directory exists
 
             // Capture UI-thread variables here to avoid cross-thread issues
             string currentPcType = this.PCType;
@@ -2154,99 +2149,104 @@ namespace AutoPatcher
 
             await Task.Run(async () =>
             {
-                foreach (string ip in ipsToProcess)
+                for (int i = 1; i <= 30; i++) // Loop for the last 30 days
                 {
-                    string remotePath = "";
-                    bool pathFound = false;
+                    string targetDateStr = DateTime.Now.AddDays(-i).ToString("yyyy-MM-dd");
+                    await Dispatcher.InvokeAsync(() => Log($"--- Processing logs for {targetDateStr} ---"));
 
-                    try
+                    // Create a directory for the specific date
+                    string dateSpecificLocalDir = System.IO.Path.Combine(localLogFetchDir, targetDateStr);
+                    Directory.CreateDirectory(dateSpecificLocalDir);
+
+                    foreach (string ip in ipsToProcess)
                     {
-                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Finding remote path..."));
+                        string remotePath = "";
+                        bool pathFound = false;
 
-                        string strPCtype = currentPcType;
-                        if (currentModeType == "SII" && currentProcessName == "IS.exe") strPCtype += "\\IS";
-                        string diskType = "D";
-
-                        string[] remotePathList =
+                        try
                         {
-                            $@"\\{ip}\{strPCtype.ToLower()}",
-                            $@"\\{ip}\{strPCtype}",
-                            $@"\\{ip}\{diskType}\{strPCtype.ToLower()}",
-                            $@"\\{ip}\{diskType}\{strPCtype}",
-                            $@"\\{ip}\{diskType.ToLower()}\{strPCtype.ToLower()}",
-                            $@"\\{ip}\{diskType.ToLower()}\{strPCtype}",
-                        };
+                            await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ Finding remote path for logs from {targetDateStr}..."));
 
-                        ResourceManager rscManager = new ResourceManager("AutoPatcher.Resource.UserInfo", typeof(MainWindow).Assembly);
-                        string id = rscManager.GetString($"{currentModeType.ToUpper()}_{currentPcType.ToUpper()}_ID");
-                        string pw = rscManager.GetString($"{currentModeType.ToUpper()}_{currentPcType.ToUpper()}_PW");
+                            string strPCtype = currentPcType;
+                            if (currentModeType == "SII" && currentProcessName == "IS.exe") strPCtype += "\\IS";
+                            string diskType = "D";
 
-                        foreach (string pathAttempt in remotePathList)
-                        {
-                            //ConnectNetworkDrive(pathAttempt, id, pw); // This is a blocking call
-
-                            if (Directory.Exists(pathAttempt))
+                            string[] remotePathList =
                             {
-                                remotePath = pathAttempt;
-                                pathFound = true;
-                                await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Found accessible path: {remotePath}"));
-                                break;
-                            }
-                        }
+                                $@"\\{ip}\\{strPCtype.ToLower()}",
+                                $@"\\{ip}\\{strPCtype}",
+                                $@"\\{ip}\\{diskType}\\{strPCtype.ToLower()}",
+                                $@"\\{ip}\\{diskType}\\{strPCtype}",
+                                $@"\\{ip}\\{diskType.ToLower()}\\{strPCtype.ToLower()}",
+                                $@"\\{ip}\\{diskType.ToLower()}\\{strPCtype}",
+                            };
 
-                        if (!pathFound || string.IsNullOrEmpty(remotePath))
-                        {
-                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Could not find any accessible remote path.", LogLevel.ERROR));
-                            continue; // Next IP
-                        }
+                            ResourceManager rscManager = new ResourceManager("AutoPatcher.Resource.UserInfo", typeof(MainWindow).Assembly);
+                            string id = rscManager.GetString($"{currentModeType.ToUpper()}_{currentPcType.ToUpper()}_ID");
+                            string pw = rscManager.GetString($"{currentModeType.ToUpper()}_{currentPcType.ToUpper()}_PW");
 
-                        string remoteLogPath = System.IO.Path.Combine(remotePath, "log");
-                        if (!Directory.Exists(remoteLogPath))
-                        {
-                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Log directory not found at: {remoteLogPath}", LogLevel.WARN));
-                            continue; // Next IP
-                        }
-
-                        string[] logFiles = Directory.GetFiles(remoteLogPath, $"*{yesterday}*.log");
-
-                        if (logFiles.Length == 0)
-                        {
-                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ No log files found for yesterday ({yesterday}).", LogLevel.INFO));
-                            continue; // Next IP
-                        }
-
-                        string ipSpecificLocalDir = System.IO.Path.Combine(localLogFetchDir, today); // Sanitize IP for folder name
-                        Directory.CreateDirectory(ipSpecificLocalDir);
-
-                        int copiedCount = 0;
-                        foreach (string logFile in logFiles)
-                        {
-                            try
-                            {                                
-                                string fileName = System.IO.Path.GetFileName(logFile);
-                                fileName = GetInspectionUnitFromIp(ip)+".log";
-                                string destFile = System.IO.Path.Combine(ipSpecificLocalDir, fileName);
-                                System.IO.File.Copy(logFile, destFile, true); // Overwrite if exists
-                                copiedCount++;
-                            }
-                            catch (Exception ex)
+                            foreach (string pathAttempt in remotePathList)
                             {
-                                await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Failed to copy log file {System.IO.Path.GetFileName(logFile)}: {ex.Message}", LogLevel.ERROR));
+                                if (Directory.Exists(pathAttempt))
+                                {
+                                    remotePath = pathAttempt;
+                                    pathFound = true;
+                                    await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ Found accessible path: {remotePath}"));
+                                    break;
+                                }
+                            }
+
+                            if (!pathFound || string.IsNullOrEmpty(remotePath))
+                            {
+                                await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ Could not find any accessible remote path.", LogLevel.ERROR));
+                                continue; // Next IP
+                            }
+
+                            string remoteLogPath = System.IO.Path.Combine(remotePath, "log");
+                            if (!Directory.Exists(remoteLogPath))
+                            {
+                                await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ Log directory not found at: {remoteLogPath}", LogLevel.WARN));
+                                continue; // Next IP
+                            }
+
+                            string[] logFiles = Directory.GetFiles(remoteLogPath, $"*{targetDateStr}*.log");
+
+                            if (logFiles.Length == 0)
+                            {
+                                await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ No log files found for {targetDateStr}.", LogLevel.INFO));
+                                continue; // Next IP
+                            }
+
+                            int copiedCount = 0;
+                            foreach (string logFile in logFiles)
+                            {
+                                try
+                                {
+                                    string inspectionUnit = await Dispatcher.InvokeAsync(() => GetInspectionUnitFromIp(ip));
+                                    string fileName = (inspectionUnit ?? ip) + ".log";
+                                    string destFile = System.IO.Path.Combine(dateSpecificLocalDir, fileName);
+                                    System.IO.File.Copy(logFile, destFile, true); // Overwrite if exists
+                                    copiedCount++;
+                                }
+                                catch (Exception ex)
+                                {
+                                    await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ Failed to copy log file {System.IO.Path.GetFileName(logFile)}: {ex.Message}", LogLevel.ERROR));
+                                }
+                            }
+
+                            if (copiedCount > 0)
+                            {
+                                await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ Successfully copied {copiedCount} log file(s) to {dateSpecificLocalDir}"));
                             }
                         }
-
-                        if (copiedCount > 0)
+                        catch (Exception ex)
                         {
-                            await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ Successfully copied {copiedCount} log file(s) to {ipSpecificLocalDir}"));
+                            await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ An error occurred during log fetch for {targetDateStr}: {ex.Message}", LogLevel.ERROR));
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        await Dispatcher.InvokeAsync(() => Log($"[{ip}] _ An error occurred during log fetch: {ex.Message}", LogLevel.ERROR));
                     }
                 }
 
-                await Dispatcher.InvokeAsync(() => Log("Finished fetching logs for all selected machines."));
+                await Dispatcher.InvokeAsync(() => Log("Finished fetching logs for all selected machines and dates."));
             });
         }
 
