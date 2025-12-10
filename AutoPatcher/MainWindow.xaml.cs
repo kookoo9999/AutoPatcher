@@ -47,7 +47,7 @@ namespace AutoPatcher
     /// </summary>
     public partial class MainWindow : System.Windows.Window, INotifyPropertyChanged
     {
-        private SemaphoreSlim _fileCopySemaphore = new SemaphoreSlim(10); // 동시 파일 복사 작업 수를 10개로 제한
+        private SemaphoreSlim _PatchSemaphore = new SemaphoreSlim(10); // 동시 파일 복사 작업 수를 10개로 제한
         public event PropertyChangedEventHandler PropertyChanged;
 
         protected void OnPropertyChanged(string propertyName)
@@ -803,20 +803,15 @@ namespace AutoPatcher
         {
             string currentIp = ip;
             bool ipPatchSuccess = false;
+            string remotePath = ""; // 스코프 확장
 
+            await _PatchSemaphore.WaitAsync(); // 1. 세마포어 획득 (연결 시도 제한)
             try
             {
                 await Dispatcher.InvokeAsync(() =>
                 {                    
                     Log($"[{GetInspectionUnitFromIp(ip)}] _ Try to access..."); //
                     UpdatePCStatus(currentIp, PatchStatus.InProgress); //
-
-                    //CellData cellData = CellDatas.FirstOrDefault(item => item.IP == currentIp); //
-                    //if (cellData != null)
-                    //{
-                    //    ChangeCellColor(cellData.ROW, cellData.COLUMN, System.Windows.Media.Brushes.LimeGreen); //
-                    //                                                                                            // GetCell(cellData.ROW, cellData.COLUMN)?.Focus(); // 포커싱은 UI를 혼란스럽게 할 수 있음
-                    //}
                 });
                 await Task.Delay(100); //
 
@@ -831,14 +826,11 @@ namespace AutoPatcher
                 }
                 await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(currentIp)}] _ Ping success")); //
 
-                // 경로 설정 및 연결 로직 (기존과 유사, 단 ConnectNetworkDrive는 스레드 안전하게 수정되었다고 가정)
-                // ... (ConnectNetworkDrive, Directory.Exists 등 호출 부분)
-                // PCType, ModeType 등 멤버 변수 사용 시, 병렬 작업 중 변경되지 않는다는 가정하에 사용
+                // 경로 설정 및 연결 로직
                 string strPCtype = PCType; // main, vision
                 if (ModeType == "SII" && ProcessNameToCheck == "IS.exe") strPCtype += "\\IS"; //
                 string diskType = "D"; //
-                string remotePath = ""; //
-
+                
                 string[] remotePathList =
                 {
                       $"\\\\{ip}\\{strPCtype.ToLower()}",                       // ip : main,vision
@@ -856,7 +848,7 @@ namespace AutoPatcher
 
                 bool pathFound = false;
 
-                foreach (string pathAttempt in remotePathList) // remotePathList는 기존처럼 생성
+                foreach (string pathAttempt in remotePathList) 
                 {
                     // 1. 네트워크 드라이브 연결 시도
                     bool connectionApiSuccess = ConnectNetworkDrive(pathAttempt, id, pw); //
@@ -866,8 +858,6 @@ namespace AutoPatcher
                         connectionApiSuccess = ConnectNetworkDrive(pathAttempt, "eav", pw);
                         if (!connectionApiSuccess) connectionApiSuccess = ConnectNetworkDrive(pathAttempt, "slf", pw);
                         
-                        // WNetUseConnection API 호출이 명시적으로 성공하지 않았음을 로그로 남깁니다.
-                        // (예: 이미 연결됨, 다른 오류 등). 그러나 경로는 여전히 접근 가능할 수 있습니다.
                         await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(currentIp)}] _ ConnectNetworkDrive API for '{pathAttempt}' reported an issue or no new connection was made. Proceeding to check path accessibility.", LogLevel.INFO));
                     }
                     else
@@ -876,7 +866,6 @@ namespace AutoPatcher
                     }
 
                     // 2. 경로 존재 유무 및 접근 가능성 확인 
-                    // ConnectNetworkDrive의 반환 값과 관계없이 실제 경로 접근을 시도
                     try
                     {
                         if (Directory.Exists(pathAttempt))
@@ -888,13 +877,11 @@ namespace AutoPatcher
                         }
                         else
                         {
-                            // 해당 경로가 존재하지 않거나 접근할 수 없음을 로그로 남깁니다.
                             await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(currentIp)}] _ Path '{pathAttempt}' not found or not accessible.", LogLevel.INFO));
                         }
                     }
                     catch (Exception ex)
                     {
-                        // Directory.Exists 중 예외 발생 시 (네트워크 오류 등)
                         await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(currentIp)}] _ Exception while checking Directory.Exists for '{pathAttempt}': {ex.Message}", LogLevel.WARN));
                     }
                 }
@@ -906,7 +893,6 @@ namespace AutoPatcher
                         Log($"[{GetInspectionUnitFromIp(currentIp)}] _ CRITICAL: No accessible remote path found after trying all candidates. Patching for this IP will be skipped.", LogLevel.ERROR);
                         SetFail(currentIp); //
                     });
-                    // onIpCompletedCallback는 ProcessSingleIPAsync의 finally 블록에서 호출되므로 여기서 return해도 문제없음
                     return;
                 }
 
@@ -916,9 +902,57 @@ namespace AutoPatcher
                 List<string> backupPathList = new List<string> { remoteFolderPath };
                 if (ProcessNameToCheck == "HDSInspector.exe") backupPathList.Add(remoteConfigPath);
 
-                // Patch 메서드를 호출 (PatchInternalAsync로 리팩토링 버전)
+                // Patch 메서드를 호출 (파일 복사까지 진행)
                 ipPatchSuccess = await PatchInternalAsync(currentIp, backupPathList, remoteBackupPath, remotePath, FilesToCheck, SourceDirectory, ProcessNameToCheck, UseDirectPatch);
+            
+            }
+            catch (Exception ex)
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    Log($"[{GetInspectionUnitFromIp(currentIp)}] _ Error occurred: {ex.Message}", LogLevel.ERROR); //
+                    SetFail(currentIp); //
+                });
+                ipPatchSuccess = false;
+            }
+            finally
+            {
+                _PatchSemaphore.Release(); // 2. 세마포어 반납 (파일 복사 완료 후 즉시 해제하여 다음 PC 진입 허용)
+            }
 
+            // 3. 세마포어 밖에서 대기 (병렬 대기)
+            if (ipPatchSuccess)
+            {
+                // 직접 패치가 아닌 경우, Updater 완료 대기
+                if (!UseDirectPatch)
+                {
+                    try 
+                    {
+                        string successFlagFilePath = System.IO.Path.Combine(remotePath, "bin", "update_success.flag");
+                        bool updateSuccess = await WaitForUpdaterCompletion(currentIp, successFlagFilePath, mWaitingTime);
+
+                        if (updateSuccess)
+                        {
+                            await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(currentIp)}] _ Updater.exe reported success."));
+                            // 성공 처리 유지
+                        }
+                        else
+                        {
+                            await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(currentIp)}] _ Updater.exe did not report success within the timeout.", LogLevel.ERROR));
+                            ipPatchSuccess = false; // 실패로 변경
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                         await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(currentIp)}] _ Error waiting for updater: {ex.Message}", LogLevel.ERROR));
+                         ipPatchSuccess = false;
+                    }
+                }
+            }
+
+            // 최종 결과 처리
+            try 
+            {
                 if (ipPatchSuccess)
                 {
                     await Dispatcher.InvokeAsync(() =>
@@ -926,11 +960,6 @@ namespace AutoPatcher
                         Log($"[{GetInspectionUnitFromIp(currentIp)}] _ patch complete"); //
                         SetComplete(currentIp); //
                     });
-
-                    //if (!ProcessStart(currentIp)) //
-                    //    await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _  failed to run process", LogLevel.ERROR)); //
-                    //else
-                    //    await Dispatcher.InvokeAsync(() => Log($"[{currentIp}] _  success to run process")); //
                 }
                 else
                 {
@@ -947,65 +976,27 @@ namespace AutoPatcher
                     CellData cellInfoForUncheck = CellDatas.FirstOrDefault(item => item.IP == currentIp);
                     if (cellInfoForUncheck != null)
                     {
-                        // DataGridItems 컬렉션과 RowData 인덱스의 유효성 확인
                         if (cellInfoForUncheck.ROW >= 0 && cellInfoForUncheck.ROW < DataGridItems.Count)
                         {
                             RowData rowDataItem = DataGridItems[cellInfoForUncheck.ROW];
 
-                            // RowData 객체 내에서 현재 IP와 일치하는 PC 속성을 찾아 해당 Selected 플래그를 false로 설정
-                            if (rowDataItem.PC1 == currentIp)
-                            {
-                                rowDataItem.MainSelected = false;
-                            }
-                            else if (rowDataItem.PC2 == currentIp)
-                            {
-                                rowDataItem.V1Selected = false;
-                            }
-                            else if (rowDataItem.PC3 == currentIp)
-                            {
-                                rowDataItem.V2Selected = false;
-                            }
-                            else if (rowDataItem.PC4 == currentIp)
-                            {
-                                rowDataItem.V3Selected = false;
-                            }
-                            else if (rowDataItem.PC5 == currentIp)
-                            {
-                                rowDataItem.V4Selected = false;
-                            }
-                            else if (rowDataItem.PC6 == currentIp)
-                            {
-                                rowDataItem.V5Selected = false;
-                            }
-                            else
-                            {
-                                // 만약 RowData 내에서 해당 IP를 가진 PC 속성을 찾지 못한 경우 (데이터 불일치 등)
-                                Log($"[{GetInspectionUnitFromIp(currentIp)}] Could not find matching PC property in RowData to uncheck checkbox for IP {currentIp} in row {cellInfoForUncheck.ROW}.", LogLevel.WARN);
-                            }
+                            if (rowDataItem.PC1 == currentIp) rowDataItem.MainSelected = false;
+                            else if (rowDataItem.PC2 == currentIp) rowDataItem.V1Selected = false;
+                            else if (rowDataItem.PC3 == currentIp) rowDataItem.V2Selected = false;
+                            else if (rowDataItem.PC4 == currentIp) rowDataItem.V3Selected = false;
+                            else if (rowDataItem.PC5 == currentIp) rowDataItem.V4Selected = false;
+                            else if (rowDataItem.PC6 == currentIp) rowDataItem.V5Selected = false;
                         }
-                        else
-                        {
-                            Log($"[{GetInspectionUnitFromIp(currentIp)}] Invalid row index {cellInfoForUncheck.ROW} for IP {currentIp} when trying to uncheck checkbox.", LogLevel.WARN);
-                        }
-                    }
-                    else
-                    {
-                        Log($"[{GetInspectionUnitFromIp(currentIp)}] Could not find CellData for IP {currentIp} to uncheck checkbox.", LogLevel.WARN);
                     }
                 });
                 #endregion
             }
             catch (Exception ex)
             {
-                await Dispatcher.InvokeAsync(() =>
-                {
-                    Log($"[{GetInspectionUnitFromIp(currentIp)}] _ Error occurred: {ex.Message}", LogLevel.ERROR); //
-                    SetFail(currentIp); //
-                });
+                 await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(currentIp)}] _ Error in finalizing: {ex.Message}", LogLevel.ERROR));
             }
             finally
             {
-
                 onIpCompletedCallback?.Invoke();
             }
         }
@@ -1018,7 +1009,7 @@ namespace AutoPatcher
                 remoteFolderPath = (bDirectPatch) ?
                     System.IO.Path.Combine(remoteFolderPath, "bin") :
                     System.IO.Path.Combine(remoteFolderPath, "temp_update"); // 직접 패치 여부에 따라 백업 경로 설정
-                string remoteResultCheckPath = System.IO.Path.Combine(remotePath, "bin"); // 결과 확인 경로 (업데이트 성공 플래그 파일 위치)
+                // string remoteResultCheckPath = System.IO.Path.Combine(remotePath, "bin"); // ProcessSingleIPAsync로 이동됨
 
                 // temp_update 폴더가 존재하면 그 내용만 삭제합니다.
                 if (!bDirectPatch) ClearFolder(remoteFolderPath);
@@ -1071,16 +1062,17 @@ namespace AutoPatcher
                     }
 
                     // SourceDirectory의 모든 파일과 폴더를 remoteFolderPath (temp_update)로 복사
-                    await _fileCopySemaphore.WaitAsync(); // 동시 파일 복사 제한
+                    // 세마포어 제거됨 (ProcessSingleIPAsync에서 제어)
                     try
                     {
                         //await Task.Run(() => CopyAllFilesAndFolders(sourceDirectory, remoteFolderPath));
                         await Task.Run(() => CopyFolder(sourceDirectory, remoteFolderPath));
                         await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ All patch files copied to temp_update. External program will now execute Updater.exe."));
                     }
-                    finally
+                    catch (Exception ex)
                     {
-                        _fileCopySemaphore.Release(); // 제한 해제
+                         await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ File copy failed: {ex.Message}", LogLevel.ERROR));
+                         return false;
                     }
 
                     #region IS 플래그 생성 로직
@@ -1136,20 +1128,8 @@ namespace AutoPatcher
                     }
                     #endregion
 
-                    // 플래그 파일 경로를 targetDir (bin 폴더)로 변경
-                    string successFlagFilePath = System.IO.Path.Combine(remotePath, "bin", "update_success.flag");
-                    bool updateSuccess = await WaitForUpdaterCompletion(ip, successFlagFilePath, mWaitingTime); // 5분 대기
-
-                    if (updateSuccess)
-                    {
-                        await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ Updater.exe reported success."));
-                        return true;
-                    }
-                    else
-                    {
-                        await Dispatcher.InvokeAsync(() => Log($"[{GetInspectionUnitFromIp(ip)}] _ Updater.exe did not report success within the timeout.", LogLevel.ERROR));
-                        return false;
-                    }
+                    // WaitForUpdaterCompletion 제거됨 (ProcessSingleIPAsync에서 호출)
+                    return true;
                 }
                 // If bDirectPatch is true, the existing direct patch logic will be executed.
                 // This part remains unchanged.

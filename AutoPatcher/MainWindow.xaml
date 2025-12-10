@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:AutoPatcher"
         mc:Ignorable="d"
-        Title="HDS Auto Patcher [ Version 1.2.6 Log수정 ]" Height="950" Width="1280">
+        Title="HDS Auto Patcher [ Version 1.2.7 Log수정 및 동시작업제한 ]" Height="950" Width="1280">
     <Window.Resources>
         <!-- Grouping Data by Group -->
         <CollectionViewSource x:Key="GroupedData" Source="{Binding DataGridItems}">
