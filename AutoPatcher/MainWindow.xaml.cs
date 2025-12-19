@@ -298,7 +298,7 @@ namespace AutoPatcher
         {
             try
             {
-                string logDirectory = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs");
+                string logDirectory = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory,@"..\", "Logs");
                 if (!Directory.Exists(logDirectory))
                 {
                     Directory.CreateDirectory(logDirectory);
@@ -760,12 +760,13 @@ namespace AutoPatcher
                 patchTasks.Add(ProcessSingleIPAsync(ip, totalIPs, () =>
                 {
                     // 전체 진행률 스레드 안전하게 업데이트
-                    Interlocked.Increment(ref completedIPs);
-                    double currentTotalProgress = ((double)completedIPs / totalIPs) * 100.0;
+                    int currentDone = Interlocked.Increment(ref completedIPs);
+                    double currentTotalProgress = ((double)currentDone / totalIPs) * 100.0;
                     Dispatcher.InvokeAsync(() =>
                     {
                         pbtotalBar.Value = currentTotalProgress;
                         txttotalBar.Text = currentTotalProgress.ToString("0.0") + "%";
+                        RemainingMachinesText = $"Number of left machine : {totalIPs - currentDone}";
                     });
                     //semaphore.Release(); // 동시 작업 수 제한 시 사용
                 }));
@@ -773,7 +774,7 @@ namespace AutoPatcher
 
             await Task.WhenAll(patchTasks);
 
-            await Dispatcher.InvokeAsync(() => RemainingMachinesText = $"Number of left machine : {IPAddresses.Count}");
+            await Dispatcher.InvokeAsync(() => RemainingMachinesText = $"Number of left machine : 0");
 
             await Dispatcher.InvokeAsync(() => Log("All patching operations have been attempted."));
             Debug.WriteLine("모든 작업이 완료되었습니다.");
@@ -795,8 +796,18 @@ namespace AutoPatcher
                 row.PC5 == ip ||
                 row.PC6 == ip);
 
+            if (foundRow == null) return null;
+
+            string pcName = "";
+            if (foundRow.PC1 == ip) pcName = "MAIN";
+            else if (foundRow.PC2 == ip) pcName = "V1";
+            else if (foundRow.PC3 == ip) pcName = "V2";
+            else if (foundRow.PC4 == ip) pcName = "V3";
+            else if (foundRow.PC5 == ip) pcName = "V4";
+            else if (foundRow.PC6 == ip) pcName = "V5";
+
             // 일치하는 행을 찾았다면 해당 행의 InspectionUnit 값을 반환            
-            return foundRow?.InspectionUnit;
+            return $"{foundRow.InspectionUnit}_{pcName}";
         }
 
         private async Task ProcessSingleIPAsync(string ip, int totalIPCount, System.Action onIpCompletedCallback)
