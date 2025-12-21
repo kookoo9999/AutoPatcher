@@ -766,7 +766,7 @@ namespace AutoPatcher
                     {
                         pbtotalBar.Value = currentTotalProgress;
                         txttotalBar.Text = currentTotalProgress.ToString("0.0") + "%";
-                        RemainingMachinesText = $"Number of left machine : {totalIPs - currentDone}";
+                        RemainingMachinesText = $"Number of left machine : {currentDone} / {totalIPs}";
                     });
                     //semaphore.Release(); // 동시 작업 수 제한 시 사용
                 }));
