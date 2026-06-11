@@ -1194,21 +1194,43 @@ namespace AutoPatcher
         {
             string failureFlagFilePath = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(successFlagFilePath), "update_failure.flag");
             SetWaiting(ip); // 대기 상태로 설정
+
+            // 시작 시간 기록 (이 시간 이후에 생성된 파일만 유효)
+            DateTime startTime = DateTime.Now;
+
+            // 시작 전 기존 플래그가 있다면 삭제 시도 (혹시 모를 잔류 파일 제거)
+            try
+            {
+                if (System.IO.File.Exists(successFlagFilePath)) { Log($"[{GetInspectionUnitFromIp(ip)}] _ Delete existing flag : {successFlagFilePath}"); System.IO.File.Delete(successFlagFilePath); }
+                if (System.IO.File.Exists(failureFlagFilePath)) { Log($"[{GetInspectionUnitFromIp(ip)}] _ Delete existing flag : {failureFlagFilePath}"); System.IO.File.Delete(failureFlagFilePath); }
+            }
+            catch { /* 무시 */ }
+
             int waitedSeconds = 0;
             while (waitedSeconds < timeoutSeconds)
             {
+                // 성공 플래그 확인
                 if (System.IO.File.Exists(successFlagFilePath))
                 {
-                    // 성공 플래그 파일이 존재하면 성공처리
-                    System.IO.File.Delete(successFlagFilePath); // 플래그 파일 삭제
-                    return true;
+                    DateTime createTime = System.IO.File.GetCreationTime(successFlagFilePath);
+                    if (createTime >= startTime.AddSeconds(-5)) // 약간의 시간 오차 허용
+                    {
+                        try { System.IO.File.Delete(successFlagFilePath); } catch { }
+                        return true;
+                    }
                 }
+
+                // 실패 플래그 확인
                 if (System.IO.File.Exists(failureFlagFilePath))
                 {
-                    // 실패 플래그 파일이 존재하면 실패처리
-                    System.IO.File.Delete(failureFlagFilePath); // 플래그 파일 삭제
-                    return false;
+                    DateTime createTime = System.IO.File.GetCreationTime(failureFlagFilePath);
+                    if (createTime >= startTime.AddSeconds(-5))
+                    {
+                        try { System.IO.File.Delete(failureFlagFilePath); } catch { }
+                        return false;
+                    }
                 }
+
                 await Task.Delay(1000); // 1초 대기
                 waitedSeconds++;
             }
@@ -2304,140 +2326,120 @@ namespace AutoPatcher
             {
                 if (flag)
                 {
-                    IPAddresses.Add(ip);
-                    CellDatas.Add(new CellData
+                    // 중복 체크 추가
+                    if (!IPAddresses.Contains(ip))
                     {
-                        IP = ip,
-                        ROW = row,
-                        COLUMN = col
-                    });
+                        IPAddresses.Add(ip);
+                    }
+                    
+                    if (!CellDatas.Any(item => item.IP == ip))
+                    {
+                        CellDatas.Add(new CellData
+                        {
+                            IP = ip,
+                            ROW = row,
+                            COLUMN = col
+                        });
+                    }
                 }
                 else
                 {
-                    IPAddresses.Remove(ip);
-                    CellData removeItem = CellDatas.FirstOrDefault(item => item.IP == ip);
-                    CellDatas.Remove(removeItem);
+                    // 제거 시 모든 인스턴스 제거 (혹시 모를 중복 대비)
+                    IPAddresses.RemoveAll(x => x == ip);
+                    var removeItems = CellDatas.Where(item => item.IP == ip).ToList();
+                    foreach (var item in removeItems)
+                    {
+                        CellDatas.Remove(item);
+                    }
                 }
             }
-            System.Action action = delegate
+
+            // UI 업데이트는 Dispatcher를 통해 안전하게 수행
+            Dispatcher.BeginInvoke(new System.Action(() =>
             {
                 RemainingMachinesText = $"Number of selected machine : {IPAddresses.Count}";
-            };
-            this.Dispatcher.Invoke(action);
+            }));
         }
 
         private void AllCheckbox_checked(object sender, RoutedEventArgs e)
         {
             var checkBox = sender as System.Windows.Controls.CheckBox;
-            bool flag = (checkBox.IsChecked == true) ? true : false;
-            if (checkBox.Name.Contains("Main"))
-            {
-                foreach (var item in DataGridItems)
-                {
-                    item.MainSelected = flag;
-                }
-            }
-            else if (checkBox.Name.Contains("V1"))
-            {
-                foreach (var item in DataGridItems)
-                {
-                    item.V1Selected = flag;
-                }
-            }
-            else if (checkBox.Name.Contains("V2"))
-            {
-                foreach (var item in DataGridItems)
-                {
-                    item.V2Selected = flag;
+            bool isChecked = (checkBox.IsChecked == true);
+            
+            // 데이터 수정을 위해 복사본 사용 (컬렉션 수정 시 발생할 수 있는 문제 방지)
+            var items = DataGridItems.ToList();
 
-                }
-            }
-            else if (checkBox.Name.Contains("V3"))
+            foreach (var item in items)
             {
-                foreach (var item in DataGridItems)
+                string ip = "";
+                int colIndex = -1;
+
+                if (checkBox.Name.Contains("Main"))
                 {
-                    item.V3Selected = flag;
+                    item.MainSelected = isChecked;
+                    ip = item.PC1;
+                    colIndex = 2; // DataGrid 컬럼 순서에 따라 조정 필요
+                }
+                else if (checkBox.Name.Contains("V1"))
+                {
+                    item.V1Selected = isChecked;
+                    ip = item.PC2;
+                    colIndex = 3;
+                }
+                else if (checkBox.Name.Contains("V2"))
+                {
+                    item.V2Selected = isChecked;
+                    ip = item.PC3;
+                    colIndex = 4;
+                }
+                else if (checkBox.Name.Contains("V3"))
+                {
+                    item.V3Selected = isChecked;
+                    ip = item.PC4;
+                    colIndex = 5;
+                }
+                else if (checkBox.Name.Contains("V4"))
+                {
+                    item.V4Selected = isChecked;
+                    ip = item.PC5;
+                    colIndex = 6;
+                }
+                else if (checkBox.Name.Contains("V5"))
+                {
+                    item.V5Selected = isChecked;
+                    ip = item.PC6;
+                    colIndex = 7;
+                }
+
+                if (!string.IsNullOrEmpty(ip))
+                {
+                    if (isChecked)
+                    {
+                        if (!IPAddresses.Contains(ip)) IPAddresses.Add(ip);
+                        if (!CellDatas.Any(cd => cd.IP == ip))
+                        {
+                            CellDatas.Add(new CellData { IP = ip, ROW = DataGridItems.IndexOf(item), COLUMN = colIndex });
+                        }
+                    }
+                    else
+                    {
+                        IPAddresses.RemoveAll(x => x == ip);
+                        var removeItems = CellDatas.Where(cd => cd.IP == ip).ToList();
+                        foreach (var ri in removeItems) CellDatas.Remove(ri);
+                    }
                 }
             }
 
-            else if (checkBox.Name.Contains("V4"))
+            Dispatcher.BeginInvoke(new System.Action(() =>
             {
-                foreach (var item in DataGridItems)
-                {
-                    item.V4Selected = flag;
-                }
-            }
-
-            else if (checkBox.Name.Contains("V5"))
-            {
-                foreach (var item in DataGridItems)
-                {
-                    item.V5Selected = flag;
-                }
-            }
-
+                RemainingMachinesText = $"Number of selected machine : {IPAddresses.Count}";
+            }));
         }
 
         private void DirectCheckbox_checked(object sender, RoutedEventArgs e)
         {
             var checkBox = sender as System.Windows.Controls.CheckBox;
             UseDirectPatch = checkBox.IsChecked == true;
-        }
-
-        private void AllCheckbox_unchecked(object sender, RoutedEventArgs e)
-        {
-            var checkBox = sender as System.Windows.Controls.CheckBox;
-
-            if (checkBox.Name.Contains("Main"))
-            {
-                foreach (var item in DataGridItems)
-                {
-                    item.MainSelected = false;
-                    IPAddresses.Add(item.PC1);
-                }
-            }
-            else if (checkBox.Name.Contains("V1"))
-            {
-                foreach (var item in DataGridItems)
-                {
-                    item.V1Selected = true;
-                    IPAddresses.Add(item.PC2);
-                }
-            }
-            else if (checkBox.Name.Contains("V2"))
-            {
-                foreach (var item in DataGridItems)
-                {
-                    item.V2Selected = true;
-                    IPAddresses.Add(item.PC3);
-                }
-            }
-            else if (checkBox.Name.Contains("V3"))
-            {
-                foreach (var item in DataGridItems)
-                {
-                    item.V3Selected = true;
-                    IPAddresses.Add(item.PC4);
-                }
-            }
-
-            else if (checkBox.Name.Contains("V4"))
-            {
-                foreach (var item in DataGridItems)
-                {
-                    item.V4Selected = true;
-                    IPAddresses.Add(item.PC5);
-                }
-            }
-
-            else if (checkBox.Name.Contains("V5"))
-            {
-                foreach (var item in DataGridItems)
-                {
-                    item.V5Selected = true;
-                    IPAddresses.Add(item.PC6);
-                }
-            }
         }
 
         private void Radiobutton_Checked(object sender, RoutedEventArgs e)
@@ -2560,60 +2562,6 @@ namespace AutoPatcher
             }
         }
 
-        private void chkMainAll_Checked(object sender, RoutedEventArgs e)
-        {
-            var checkBox = sender as System.Windows.Controls.CheckBox;
-
-            if (checkBox.Name.Contains("Main"))
-            {
-                foreach (var item in DataGridItems)
-                {
-                    item.MainSelected = false;
-                    IPAddresses.Add(item.PC1);
-                }
-            }
-            else if (checkBox.Name.Contains("V1"))
-            {
-                foreach (var item in DataGridItems)
-                {
-                    item.V1Selected = true;
-                    IPAddresses.Add(item.PC2);
-                }
-            }
-            else if (checkBox.Name.Contains("V2"))
-            {
-                foreach (var item in DataGridItems)
-                {
-                    item.V2Selected = true;
-                    IPAddresses.Add(item.PC3);
-                }
-            }
-            else if (checkBox.Name.Contains("V3"))
-            {
-                foreach (var item in DataGridItems)
-                {
-                    item.V3Selected = true;
-                    IPAddresses.Add(item.PC4);
-                }
-            }
-
-            else if (checkBox.Name.Contains("V4"))
-            {
-                foreach (var item in DataGridItems)
-                {
-                    item.V4Selected = true;
-                    IPAddresses.Add(item.PC5);
-                }
-            }
-
-            else if (checkBox.Name.Contains("V5"))
-            {
-                foreach (var item in DataGridItems)
-                {
-                    item.V5Selected = true;
-                    IPAddresses.Add(item.PC6);
-                }
-            }
         }
     }
 
@@ -2682,5 +2630,5 @@ namespace AutoPatcher
         public string IP { get; set; }
         public PatchStatus Status { get; set; } = PatchStatus.None;
     }
-}
+
 
