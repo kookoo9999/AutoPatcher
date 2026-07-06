@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoPatcher", "AutoPatcher\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Updater", "..\Updater\Updater\Updater.csproj", "{FD85837F-5773-4A54-8D82-63B87F03577D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PatchAgent", "PatchAgent\PatchAgent.csproj", "{31495CF5-84AC-4432-AB9F-3D35F482558E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{FD85837F-5773-4A54-8D82-63B87F03577D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FD85837F-5773-4A54-8D82-63B87F03577D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FD85837F-5773-4A54-8D82-63B87F03577D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{31495CF5-84AC-4432-AB9F-3D35F482558E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{31495CF5-84AC-4432-AB9F-3D35F482558E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{31495CF5-84AC-4432-AB9F-3D35F482558E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{31495CF5-84AC-4432-AB9F-3D35F482558E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
