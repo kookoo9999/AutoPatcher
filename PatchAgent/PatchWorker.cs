@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 
 namespace PatchAgent
 {
@@ -23,7 +24,6 @@ namespace PatchAgent
 
         private readonly string _centralModeRoot;
         private readonly string _centralVersionFile;
-        private readonly string _centralPackageDir;
         private readonly string _centralStatusDir;
 
         public PatchWorker(AgentConfig config, Logger log)
@@ -40,30 +40,40 @@ namespace PatchAgent
 
             _centralModeRoot = Path.Combine(config.CentralServer, config.Mode, config.PCType);
             _centralVersionFile = Path.Combine(_centralModeRoot, "version.txt");
-            _centralPackageDir = Path.Combine(_centralModeRoot, "package");
             _centralStatusDir = Path.Combine(_centralModeRoot, "status");
         }
 
         public void RunCycle()
         {
-            if (!File.Exists(_centralVersionFile))
+            ApplyJitter();
+
+            string remoteVersion;
+            try
             {
-                _log.Warn($"중앙 버전 파일에 접근할 수 없습니다: {_centralVersionFile}");
+                if (!File.Exists(_centralVersionFile))
+                {
+                    _log.Warn($"중앙 버전 파일에 접근할 수 없습니다: {_centralVersionFile}");
+                    return;
+                }
+
+                remoteVersion = File.ReadAllText(_centralVersionFile).Trim();
+                string localVersion = File.Exists(_localVersionMarker)
+                    ? File.ReadAllText(_localVersionMarker).Trim()
+                    : string.Empty;
+
+                if (string.Equals(remoteVersion, localVersion, StringComparison.OrdinalIgnoreCase))
+                {
+                    _log.Info($"이미 최신 버전입니다 ({localVersion}). 종료.");
+                    return;
+                }
+
+                EnsureStaged(remoteVersion);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                _log.Warn($"중앙 공유({_centralModeRoot}) 접근 실패 - 다음 주기에 재시도합니다: {ex.Message}");
                 return;
             }
-
-            string remoteVersion = File.ReadAllText(_centralVersionFile).Trim();
-            string localVersion = File.Exists(_localVersionMarker)
-                ? File.ReadAllText(_localVersionMarker).Trim()
-                : string.Empty;
-
-            if (string.Equals(remoteVersion, localVersion, StringComparison.OrdinalIgnoreCase))
-            {
-                _log.Info($"이미 최신 버전입니다 ({localVersion}). 종료.");
-                return;
-            }
-
-            EnsureStaged(remoteVersion);
 
             string processBaseName = Path.GetFileNameWithoutExtension(_config.ProcessName);
             bool running = Process.GetProcessesByName(processBaseName).Any();
@@ -117,12 +127,30 @@ namespace PatchAgent
             if (string.Equals(stagedVersion, remoteVersion, StringComparison.OrdinalIgnoreCase))
                 return;
 
-            _log.Info($"새 버전 스테이징 중: {remoteVersion}");
+            string centralPackageDir = GetCentralPackageDir(remoteVersion);
+            _log.Info($"새 버전 스테이징 중: {remoteVersion} (경로: {centralPackageDir})");
             ClearFolder(_localTempUpdate);
             Directory.CreateDirectory(_localTempUpdate);
-            CopyDirectoryOverwrite(_centralPackageDir, _localTempUpdate, excludeFileName: null);
+            CopyDirectoryOverwrite(centralPackageDir, _localTempUpdate, excludeFileName: null);
             File.WriteAllText(_stagedVersionMarker, remoteVersion);
             _log.Info($"스테이징 완료: {remoteVersion}");
+        }
+
+        // 배포측 계약: version.txt를 갱신하기 전에 package_{version} 폴더를 완전히 다 올려야 한다.
+        // 버전별로 폴더가 분리되어 있어, 배포 도중인 다음 버전과 절대 경로가 겹치지 않는다
+        // (= 폴링 중인 PC가 신/구 파일이 뒤섞인 내용을 읽을 수 없다).
+        private string GetCentralPackageDir(string version) =>
+            Path.Combine(_centralModeRoot, "package_" + version);
+
+        private void ApplyJitter()
+        {
+            if (_config.MaxJitterSeconds <= 0) return;
+
+            int waitSeconds = new Random().Next(0, _config.MaxJitterSeconds + 1);
+            if (waitSeconds <= 0) return;
+
+            _log.Info($"다수 PC 동시 접속 분산을 위해 {waitSeconds}초 대기.");
+            Thread.Sleep(TimeSpan.FromSeconds(waitSeconds));
         }
 
         private static void ClearFolder(string path)

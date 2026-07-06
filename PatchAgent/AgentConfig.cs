@@ -11,6 +11,7 @@ namespace PatchAgent
         public string PCType { get; private set; }
         public string ProcessName { get; private set; }
         public string InstallRoot { get; private set; }
+        public int MaxJitterSeconds { get; private set; }
 
         public static AgentConfig Load(string path)
         {
@@ -38,6 +39,7 @@ namespace PatchAgent
                 PCType = GetRequired(values, "PCType"),
                 ProcessName = GetRequired(values, "ProcessName"),
                 InstallRoot = GetRequired(values, "InstallRoot"),
+                MaxJitterSeconds = GetOptionalInt(values, "MaxJitterSeconds", defaultValue: 60),
             };
 
             return config;
@@ -48,6 +50,13 @@ namespace PatchAgent
             if (!values.TryGetValue(key, out string value) || string.IsNullOrWhiteSpace(value))
                 throw new InvalidOperationException($"설정 항목 누락: {key}");
             return value;
+        }
+
+        private static int GetOptionalInt(Dictionary<string, string> values, string key, int defaultValue)
+        {
+            if (!values.TryGetValue(key, out string value) || string.IsNullOrWhiteSpace(value))
+                return defaultValue;
+            return int.TryParse(value, out int parsed) ? parsed : defaultValue;
         }
     }
 }
