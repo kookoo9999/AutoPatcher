@@ -45,8 +45,6 @@ namespace PatchAgent
 
         public void RunCycle()
         {
-            ApplyJitter();
-
             string remoteVersion;
             try
             {
@@ -126,6 +124,11 @@ namespace PatchAgent
 
             if (string.Equals(stagedVersion, remoteVersion, StringComparison.OrdinalIgnoreCase))
                 return;
+
+            // 실제로 새 버전을 복사해야 할 때만 대기한다 - 다수 PC가 신버전 발견 순간에
+            // 한꺼번에 central share로 몰리는 것을 막기 위함. 이미 스테이징된 버전을
+            // 그대로 쓰는 사이클(=프로세스 종료 감지 -> 적용)에는 지연을 주지 않는다.
+            ApplyJitter();
 
             string centralPackageDir = GetCentralPackageDir(remoteVersion);
             _log.Info($"새 버전 스테이징 중: {remoteVersion} (경로: {centralPackageDir})");
