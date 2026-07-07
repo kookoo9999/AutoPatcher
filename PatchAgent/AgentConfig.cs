@@ -12,6 +12,7 @@ namespace PatchAgent
         public string ProcessName { get; private set; }
         public string InstallRoot { get; private set; }
         public int MaxJitterSeconds { get; private set; }
+        public int BackupRetentionDays { get; private set; }
 
         public static AgentConfig Load(string path)
         {
@@ -40,6 +41,7 @@ namespace PatchAgent
                 ProcessName = GetRequired(values, "ProcessName"),
                 InstallRoot = GetRequired(values, "InstallRoot"),
                 MaxJitterSeconds = GetOptionalInt(values, "MaxJitterSeconds", defaultValue: 60),
+                BackupRetentionDays = GetOptionalInt(values, "BackupRetentionDays", defaultValue: 14),
             };
 
             return config;

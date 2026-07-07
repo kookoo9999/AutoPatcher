@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -106,6 +107,8 @@ namespace PatchAgent
 
                 ClearFolder(_localTempUpdate);
 
+                CleanupOldBackups();
+
                 _log.Info($"패치 적용 완료 (version={remoteVersion}).");
                 WriteStatus("Success", remoteVersion, null);
             }
@@ -196,6 +199,38 @@ namespace PatchAgent
             string backupPath = Path.Combine(_localBackup, DateTime.Now.ToString("yyMMdd"), backupType);
             Directory.CreateDirectory(backupPath);
             CopyDirectoryOverwrite(sourceDir, backupPath, excludeFileName: null);
+        }
+
+        // backup\yyMMdd\ 형식의 날짜 폴더 중 보존기간(기본 14일)이 지난 것을 삭제한다.
+        // 패치마다 bin/config가 통째로 쌓이므로 정리하지 않으면 디스크가 무한 증가한다.
+        private void CleanupOldBackups()
+        {
+            int retentionDays = _config.BackupRetentionDays;
+            if (retentionDays <= 0) return; // 0 이하이면 정리 비활성화
+            if (!Directory.Exists(_localBackup)) return;
+
+            DateTime cutoff = DateTime.Now.Date.AddDays(-retentionDays);
+
+            foreach (string dir in Directory.GetDirectories(_localBackup))
+            {
+                string name = Path.GetFileName(dir);
+                // yyMMdd 형식이 아닌 폴더는 건드리지 않는다 (안전장치).
+                if (!DateTime.TryParseExact(name, "yyMMdd", CultureInfo.InvariantCulture,
+                        DateTimeStyles.None, out DateTime folderDate))
+                    continue;
+
+                if (folderDate >= cutoff) continue;
+
+                try
+                {
+                    Directory.Delete(dir, recursive: true);
+                    _log.Info($"오래된 백업 삭제: {name} (보존 {retentionDays}일 초과).");
+                }
+                catch (Exception ex)
+                {
+                    _log.Warn($"백업 삭제 실패 ({name}): {ex.Message}");
+                }
+            }
         }
 
         private void WriteStatus(string result, string version, string errorMessage)
