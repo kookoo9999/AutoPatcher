@@ -12,3 +12,5 @@ dump
 db
 *.bak
 log
+*.ini
+*.ini

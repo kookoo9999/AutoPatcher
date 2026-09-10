@@ -39,7 +39,7 @@ namespace PatchAgent
             _localVersionMarker = Path.Combine(_localBin, "patch_agent_version.txt");
             _stagedVersionMarker = Path.Combine(_localTempUpdate, "staged_version.txt");
 
-            _centralModeRoot = Path.Combine(config.CentralServer, config.Mode, config.PCType);
+            _centralModeRoot = Path.Combine(config.CentralServer, config.PCType);
             _centralVersionFile = Path.Combine(_centralModeRoot, "version.txt");
             _centralStatusDir = Path.Combine(_centralModeRoot, "status");
         }
@@ -62,7 +62,7 @@ namespace PatchAgent
 
                 if (string.Equals(remoteVersion, localVersion, StringComparison.OrdinalIgnoreCase))
                 {
-                    _log.Info($"이미 최신 버전입니다 ({localVersion}). 종료.");
+                    _log.Info($"이미 최신 버전입니다 서버 : {remoteVersion} 로컬 : {localVersion}. 종료.");
                     return;
                 }
 
@@ -75,13 +75,18 @@ namespace PatchAgent
             }
 
             string processBaseName = Path.GetFileNameWithoutExtension(_config.ProcessName);
-            bool running = Process.GetProcessesByName(processBaseName).Any();
-
-            if (running)
+            //bool running = Process.GetProcessesByName(processBaseName).Any();
+            int cnt = 0;
+            while(Process.GetProcessesByName(processBaseName).Any())
             {
-                _log.Info($"{_config.ProcessName} 실행 중 - 종료될 때까지 대기 (다음 주기에 재시도).");
-                WriteStatus("Waiting", remoteVersion, null);
-                return;
+                if (cnt >= 10)
+                {
+                    _log.Info($"{_config.ProcessName} 실행 중 - 다음 주기에 재시도");
+                    WriteStatus("Waiting", remoteVersion, null);
+                    return;
+                }
+                Thread.Sleep(1000);
+                cnt++;
             }
 
             try
