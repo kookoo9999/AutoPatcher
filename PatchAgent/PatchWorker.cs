@@ -51,6 +51,8 @@ namespace PatchAgent
             string remoteVersion = null;
             try
             {
+                for (int i = 0; i < 5; i++) Thread.Sleep(1000);
+
                 if (!File.Exists(_centralVersionFile))
                 {
                     _log.Warn($"중앙 버전 파일에 접근할 수 없습니다: {_centralVersionFile}");
@@ -106,10 +108,23 @@ namespace PatchAgent
                 Directory.CreateDirectory(_localBin);
                 File.WriteAllText(_localVersionMarker, remoteVersion);
 
+                Thread.Sleep(1000);
+
                 if (string.Equals(_config.ProcessName, "HDSInspector.exe", StringComparison.OrdinalIgnoreCase))
                 {
                     string exePath = Path.Combine(_localBin, _config.ProcessName);
-                    if (File.Exists(exePath)) Process.Start(exePath);
+                    if (File.Exists(exePath))
+                    {
+                        try
+                        {
+                            Process.Start(exePath);
+                        }
+                        catch(Exception e)
+                        {
+                            _log.Warn($"{_config.ProcessName} 실행 실패");
+                            
+                        }
+                    }
                 }
 
                 ClearFolder(_localTempUpdate);
@@ -143,6 +158,19 @@ namespace PatchAgent
             string centralPackageDir = GetCentralPackageDir(remoteVersion);
             _log.Info($"새 버전 스테이징 중: {remoteVersion} (경로: {centralPackageDir})");
             ClearFolder(_localTempUpdate);
+            try
+            {
+                Directory.CreateDirectory(_localTempUpdate);
+                CopyDirectoryOverwrite(centralPackageDir, _localTempUpdate, excludeFileName: null);
+                File.WriteAllText(_stagedVersionMarker, remoteVersion);
+                _log.Info($"스테이징 완료: {remoteVersion}");
+            }
+            catch
+            { 
+                ClearFolder(_localTempUpdate);
+                throw;
+            }
+        }
             try
             {
                 Directory.CreateDirectory(_localTempUpdate);
