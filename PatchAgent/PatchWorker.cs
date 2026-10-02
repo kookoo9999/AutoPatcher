@@ -49,6 +49,8 @@ namespace PatchAgent
             string remoteVersion;
             try
             {
+                for (int i = 0; i < 5; i++) Thread.Sleep(1000);
+
                 if (!File.Exists(_centralVersionFile))
                 {
                     _log.Warn($"중앙 버전 파일에 접근할 수 없습니다: {_centralVersionFile}");
@@ -63,6 +65,14 @@ namespace PatchAgent
                 if (string.Equals(remoteVersion, localVersion, StringComparison.OrdinalIgnoreCase))
                 {
                     _log.Info($"이미 최신 버전입니다 서버 : {remoteVersion} 로컬 : {localVersion}. 종료.");
+                    
+                    //bool bIsRunning = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(_config.ProcessName)).Any();
+                    //if (_config.ProcessName=="HDSInspector.exe" && !bIsRunning)
+                    //{
+                    //    _log.Info($"프로그램 재실행. {_config.ProcessName}");
+                    //    string exePath = Path.Combine(_localBin, _config.ProcessName);
+                    //    Process.Start(exePath);
+                    //}
                     return;
                 }
 
@@ -70,7 +80,7 @@ namespace PatchAgent
             }
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
             {
-                _log.Warn($"중앙 공유({_centralModeRoot}) 접근 실패 - 다음 주기에 재시도합니다: {ex.Message}");
+                _log.Warn($"중앙 공유({_centralModeRoot}) 접근 실패 - 다음 주기에 재시도합니다: {ex.Message}");                
                 return;
             }
 
@@ -104,10 +114,23 @@ namespace PatchAgent
                 Directory.CreateDirectory(_localBin);
                 File.WriteAllText(_localVersionMarker, remoteVersion);
 
+                Thread.Sleep(1000);
+
                 if (string.Equals(_config.ProcessName, "HDSInspector.exe", StringComparison.OrdinalIgnoreCase))
                 {
                     string exePath = Path.Combine(_localBin, _config.ProcessName);
-                    if (File.Exists(exePath)) Process.Start(exePath);
+                    if (File.Exists(exePath))
+                    {
+                        try
+                        {
+                            Process.Start(exePath);
+                        }
+                        catch(Exception e)
+                        {
+                            _log.Warn($"{_config.ProcessName} 실행 실패");
+                            
+                        }
+                    }
                 }
 
                 ClearFolder(_localTempUpdate);
@@ -141,10 +164,18 @@ namespace PatchAgent
             string centralPackageDir = GetCentralPackageDir(remoteVersion);
             _log.Info($"새 버전 스테이징 중: {remoteVersion} (경로: {centralPackageDir})");
             ClearFolder(_localTempUpdate);
-            Directory.CreateDirectory(_localTempUpdate);
-            CopyDirectoryOverwrite(centralPackageDir, _localTempUpdate, excludeFileName: null);
-            File.WriteAllText(_stagedVersionMarker, remoteVersion);
-            _log.Info($"스테이징 완료: {remoteVersion}");
+            try
+            {
+                Directory.CreateDirectory(_localTempUpdate);
+                CopyDirectoryOverwrite(centralPackageDir, _localTempUpdate, excludeFileName: null);
+                File.WriteAllText(_stagedVersionMarker, remoteVersion);
+                _log.Info($"스테이징 완료: {remoteVersion}");
+            }
+            catch
+            { 
+                ClearFolder(_localTempUpdate);
+                throw;
+            }
         }
 
         // 배포측 계약: version.txt를 갱신하기 전에 package_{version} 폴더를 완전히 다 올려야 한다.
