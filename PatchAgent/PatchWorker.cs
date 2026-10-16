@@ -288,9 +288,8 @@ namespace PatchAgent
             foreach (string dir in Directory.GetDirectories(_localBackup))
             {
                 string name = Path.GetFileName(dir);
-                // yyMMdd 형식이 아닌 폴더는 건드리지 않는다 (안전장치).
-                if (!DateTime.TryParseExact(name, "yyMMdd", CultureInfo.InvariantCulture,
-                        DateTimeStyles.None, out DateTime folderDate))
+                // yyMMdd / yyMMdd_N 형식이 아닌 폴더는 건드리지 않는다 (안전장치).
+                if (!TryParseBackupDate(name, out DateTime folderDate))
                     continue;
 
                 if (folderDate >= cutoff) continue;
@@ -305,6 +304,17 @@ namespace PatchAgent
                     _log.Warn($"백업 삭제 실패 ({name}): {ex.Message}");
                 }
             }
+        }
+
+        // 같은 날 두 번째 이후 백업은 yyMMdd_2, yyMMdd_3 ... 으로 생성된다.
+        private static bool TryParseBackupDate(string name, out DateTime date)
+        {
+            date = default(DateTime);
+            string[] parts = name.Split('_');
+            if (parts.Length > 2) return false;
+            if (parts.Length == 2 && (parts[1].Length == 0 || !parts[1].All(char.IsDigit))) return false;
+
+            return DateTime.TryParseExact(parts[0], "yyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out date);
         }
 
         // 매 사이클 기록(heartbeat). AutoPatcher 모니터링은 IPs로 엑셀의 설비와 매칭하고,
