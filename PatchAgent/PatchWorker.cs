@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Threading;
 
 namespace PatchAgent
@@ -46,7 +48,7 @@ namespace PatchAgent
 
         public void RunCycle()
         {
-            string remoteVersion;
+            string remoteVersion = null;
             try
             {
                 if (!File.Exists(_centralVersionFile))
@@ -56,13 +58,12 @@ namespace PatchAgent
                 }
 
                 remoteVersion = File.ReadAllText(_centralVersionFile).Trim();
-                string localVersion = File.Exists(_localVersionMarker)
-                    ? File.ReadAllText(_localVersionMarker).Trim()
-                    : string.Empty;
+                string localVersion = ReadLocalVersion();
 
                 if (string.Equals(remoteVersion, localVersion, StringComparison.OrdinalIgnoreCase))
                 {
                     _log.Info($"이미 최신 버전입니다 서버 : {remoteVersion} 로컬 : {localVersion}. 종료.");
+                    WriteStatus("UpToDate", remoteVersion, null);
                     return;
                 }
 
@@ -71,6 +72,7 @@ namespace PatchAgent
             catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
             {
                 _log.Warn($"중앙 공유({_centralModeRoot}) 접근 실패 - 다음 주기에 재시도합니다: {ex.Message}");
+                WriteStatus("StageFail", remoteVersion, ex.Message);
                 return;
             }
 
@@ -141,11 +143,23 @@ namespace PatchAgent
             string centralPackageDir = GetCentralPackageDir(remoteVersion);
             _log.Info($"새 버전 스테이징 중: {remoteVersion} (경로: {centralPackageDir})");
             ClearFolder(_localTempUpdate);
-            Directory.CreateDirectory(_localTempUpdate);
-            CopyDirectoryOverwrite(centralPackageDir, _localTempUpdate, excludeFileName: null);
-            File.WriteAllText(_stagedVersionMarker, remoteVersion);
-            _log.Info($"스테이징 완료: {remoteVersion}");
+            try
+            {
+                Directory.CreateDirectory(_localTempUpdate);
+                CopyDirectoryOverwrite(centralPackageDir, _localTempUpdate, excludeFileName: null);
+                File.WriteAllText(_stagedVersionMarker, remoteVersion);
+                _log.Info($"스테이징 완료: {remoteVersion}");
+            }
+            catch
+            {
+                // 빈/부분 temp_update가 남으면 설비 SW가 업데이트 대기로 오인하므로 정리한다.
+                ClearFolder(_localTempUpdate);
+                throw;
+            }
         }
+
+        private string ReadLocalVersion() =>
+            File.Exists(_localVersionMarker) ? File.ReadAllText(_localVersionMarker).Trim() : string.Empty;
 
         // 배포측 계약: version.txt를 갱신하기 전에 package_{version} 폴더를 완전히 다 올려야 한다.
         // 버전별로 폴더가 분리되어 있어, 배포 도중인 다음 버전과 절대 경로가 겹치지 않는다
@@ -238,25 +252,73 @@ namespace PatchAgent
             }
         }
 
-        private void WriteStatus(string result, string version, string errorMessage)
+        // 매 사이클 기록(heartbeat). AutoPatcher 모니터링은 IPs로 엑셀의 설비와 매칭하고,
+        // 파일 수정 시각으로 무응답을 판정한다.
+        // State: UpToDate / Waiting / Success / Fail / StageFail
+        private void WriteStatus(string state, string serverVersion, string errorMessage)
         {
             try
             {
                 Directory.CreateDirectory(_centralStatusDir);
-                string statusFile = Path.Combine(_centralStatusDir, $"{Environment.MachineName}_{_config.PCType}.txt");
+                string safePcType = _config.PCType.Replace('\\', '_').Replace('/', '_');
+                string statusFile = Path.Combine(_centralStatusDir, $"{Environment.MachineName}_{safePcType}.txt");
+
+                string localVersion;
+                try { localVersion = ReadLocalVersion(); }
+                catch (IOException) { localVersion = string.Empty; }
+
                 string content =
                     $"MachineName={Environment.MachineName}\r\n" +
                     $"Mode={_config.Mode}\r\n" +
                     $"PCType={_config.PCType}\r\n" +
-                    $"Version={version}\r\n" +
-                    $"Result={result}\r\n" +
+                    $"IPs={string.Join(",", GetLocalIPv4Addresses())}\r\n" +
+                    $"LocalVersion={localVersion}\r\n" +
+                    $"ServerVersion={serverVersion}\r\n" +
+                    $"State={state}\r\n" +
                     $"Timestamp={DateTime.Now:yyyy-MM-dd HH:mm:ss}\r\n" +
-                    (errorMessage != null ? $"Error={errorMessage}\r\n" : string.Empty);
-                File.WriteAllText(statusFile, content);
+                    (errorMessage != null ? $"Error={errorMessage.Replace("\r", " ").Replace("\n", " ")}\r\n" : string.Empty);
+                WriteFileAtomic(statusFile, content);
             }
             catch (Exception ex)
             {
                 _log.Warn($"중앙 상태 파일 기록 실패: {ex.Message}");
+            }
+        }
+
+        // 모니터링 쪽이 쓰다 만 파일을 읽지 않도록 임시파일에 쓴 뒤 교체한다.
+        private static void WriteFileAtomic(string path, string content)
+        {
+            string tmp = path + ".tmp";
+            File.WriteAllText(tmp, content);
+            try
+            {
+                if (File.Exists(path)) File.Replace(tmp, path, null);
+                else File.Move(tmp, path);
+            }
+            catch (IOException)
+            {
+                // 일부 공유(SMB) 환경에서 Replace가 지원되지 않을 때의 대체 경로.
+                File.Copy(tmp, path, overwrite: true);
+                File.Delete(tmp);
+            }
+        }
+
+        private static string[] GetLocalIPv4Addresses()
+        {
+            try
+            {
+                return NetworkInterface.GetAllNetworkInterfaces()
+                    .Where(n => n.OperationalStatus == OperationalStatus.Up &&
+                                n.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+                    .SelectMany(n => n.GetIPProperties().UnicastAddresses)
+                    .Where(a => a.Address.AddressFamily == AddressFamily.InterNetwork)
+                    .Select(a => a.Address.ToString())
+                    .Distinct()
+                    .ToArray();
+            }
+            catch (NetworkInformationException)
+            {
+                return new string[0];
             }
         }
     }
