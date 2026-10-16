@@ -211,6 +211,7 @@ namespace AutoPatcher
             FoldersToCheck = new List<string>();
             DataGrid.ItemsSource = DataGridItems;
             FileListBox.ItemsSource = FileList;
+            InitMonitor();
         }
 
         string GetStringLogLevel(LogLevel lv)
@@ -291,6 +292,8 @@ namespace AutoPatcher
             {
                 LogBox.Inlines.Add(run);
                 LogScroll.ScrollToEnd();
+                MonLogBox.Inlines.Add(new Run(text) { Foreground = run.Foreground });
+                MonLogScroll.ScrollToEnd();
             });
         }
 
@@ -1890,6 +1893,7 @@ namespace AutoPatcher
                         LoadExcelData(dlg.FileName);
                         lblCurExcel.Content = dlg.FileName;
                         Log($"Loaded machine list : {ModeType}");
+                        OnMachineListLoaded();
                     };
                     this.Dispatcher.Invoke(action);
                 }
@@ -2481,6 +2485,7 @@ namespace AutoPatcher
                     LoadExcelData(ExcelPath);
                     Log($"Loaded machine list : {ModeType}");
                 }
+                OnMachineListLoaded();
             }
             #endregion
 
@@ -2596,12 +2601,21 @@ namespace AutoPatcher
 
         public string Group { get; set; }
         public string InspectionUnit { get; set; }
-        public string PC1 { get; set; }
-        public string PC2 { get; set; }
-        public string PC3 { get; set; }
-        public string PC4 { get; set; }
-        public string PC5 { get; set; }
-        public string PC6 { get; set; }
+
+        // 모니터링 탭 셀 (PC1=Main, PC2~PC6=Vision1~5)
+        public AutoPatcher.MonitorCell M1 { get; } = new AutoPatcher.MonitorCell();
+        public AutoPatcher.MonitorCell M2 { get; } = new AutoPatcher.MonitorCell();
+        public AutoPatcher.MonitorCell M3 { get; } = new AutoPatcher.MonitorCell();
+        public AutoPatcher.MonitorCell M4 { get; } = new AutoPatcher.MonitorCell();
+        public AutoPatcher.MonitorCell M5 { get; } = new AutoPatcher.MonitorCell();
+        public AutoPatcher.MonitorCell M6 { get; } = new AutoPatcher.MonitorCell();
+
+        public string PC1 { get => M1.Ip; set => M1.Ip = value; }
+        public string PC2 { get => M2.Ip; set => M2.Ip = value; }
+        public string PC3 { get => M3.Ip; set => M3.Ip = value; }
+        public string PC4 { get => M4.Ip; set => M4.Ip = value; }
+        public string PC5 { get => M5.Ip; set => M5.Ip = value; }
+        public string PC6 { get => M6.Ip; set => M6.Ip = value; }
 
         private PatchStatus _pc1Status;
         private PatchStatus _pc2Status;

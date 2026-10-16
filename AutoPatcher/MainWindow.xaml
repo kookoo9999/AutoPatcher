@@ -13,6 +13,65 @@
                 <PropertyGroupDescription PropertyName="Group" />
             </CollectionViewSource.GroupDescriptions>
         </CollectionViewSource>
+
+        <!-- 모니터링 셀: IP / 로컬 버전 + 상태 색상 -->
+        <DataTemplate x:Key="MonitorCellTemplate">
+            <Border x:Name="bd" Background="Transparent" Padding="4,2" MinHeight="36"
+                    ToolTip="{Binding Detail}" ToolTipService.ShowDuration="60000">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <CheckBox x:Name="chk" IsChecked="{Binding Selected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Ip}" Foreground="White" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding Text}" Foreground="White" FontSize="11"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding State}" Value="UpToDate">
+                    <Setter TargetName="bd" Property="Background" Value="#2E8B57"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="Mismatch">
+                    <Setter TargetName="bd" Property="Background" Value="#CD5C5C"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="Pending">
+                    <Setter TargetName="bd" Property="Background" Value="#E08A00"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="Failed">
+                    <Setter TargetName="bd" Property="Background" Value="#8B0000"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="NoResponse">
+                    <Setter TargetName="bd" Property="Background" Value="#6B6B6B"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="NotInstalled">
+                    <Setter TargetName="bd" Property="Background" Value="#3A3A3A"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding HasIp}" Value="False">
+                    <Setter TargetName="chk" Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <Style x:Key="MonLegendText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="AntiqueWhite"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="4,0,0,0"/>
+        </Style>
+        <Style x:Key="MonLegendCount" TargetType="TextBlock" BasedOn="{StaticResource MonLegendText}">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Margin" Value="4,0,16,0"/>
+        </Style>
+        <Style x:Key="MonLegendBox" TargetType="Border">
+            <Setter Property="Width" Value="14"/>
+            <Setter Property="Height" Value="14"/>
+            <Setter Property="BorderBrush" Value="Black"/>
+            <Setter Property="BorderThickness" Value="0.5"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
     </Window.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
@@ -22,10 +81,7 @@
         <Grid Background="#1B2533" Grid.ColumnSpan="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="30"/>
-                <RowDefinition Height="3*"/>
-                <RowDefinition Height="40"/>
-                <RowDefinition Height="3*"/>
-                <RowDefinition Height="35"/>
+                <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
             <Grid Grid.Row="0">
@@ -42,7 +98,220 @@
                 </StackPanel>
                 <Label Grid.Column="1" x:Name="lblList" Content="{Binding RemainingMachinesText}" FontWeight="Bold" Foreground="AntiqueWhite"  FontSize="15" VerticalContentAlignment="Center" VerticalAlignment="Center" HorizontalContentAlignment="Center"/>
             </Grid>
-            <Grid Grid.Row="1">
+            <TabControl Grid.Row="1" x:Name="MainTab" Background="#1B2533" BorderThickness="0" Padding="0" Margin="0,2,0,0">
+                <TabItem>
+                    <TabItem.Header>
+                        <TextBlock Text="모니터링" FontSize="14" FontWeight="Bold" Padding="10,2"/>
+                    </TabItem.Header>
+                    <Grid Background="#1B2533">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="130"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- 엑셀 / 중앙 경로 -->
+                        <Grid Grid.Row="0" Margin="5,6,5,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" x:Name="btnMonLoadExcel" Content="Load Excel" Width="90" Height="28" FontSize="13" Click="btnLoadExcel_Click"/>
+                            <TextBlock Grid.Column="1" x:Name="lblMonExcel" Foreground="AntiqueWhite" VerticalAlignment="Center" Margin="10,0,10,0" TextTrimming="CharacterEllipsis"/>
+                            <Button Grid.Column="2" x:Name="btnCentralPath" Content="중앙 경로 변경" Width="110" Height="28" FontSize="13" Click="btnCentralPath_Click"/>
+                            <TextBlock Grid.Column="3" x:Name="lblCentralPath" Foreground="AntiqueWhite" VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis"/>
+                        </Grid>
+
+                        <!-- 서버 버전 / 상태별 대수 -->
+                        <WrapPanel Grid.Row="1" Margin="5,8,5,0">
+                            <TextBlock Text="서버 버전" Style="{StaticResource MonLegendText}" FontWeight="Bold" Margin="0"/>
+                            <TextBlock x:Name="lblServerMainType" Text="Main" Style="{StaticResource MonLegendText}" Margin="12,0,0,0"/>
+                            <TextBlock x:Name="lblServerMain" Text="-" Style="{StaticResource MonLegendCount}" Foreground="#7CFC00"/>
+                            <TextBlock x:Name="lblServerVisionType" Text="Vision" Style="{StaticResource MonLegendText}"/>
+                            <TextBlock x:Name="lblServerVision" Text="-" Style="{StaticResource MonLegendCount}" Foreground="#7CFC00" Margin="4,0,30,0"/>
+
+                            <Border Style="{StaticResource MonLegendBox}" Background="#2E8B57"/>
+                            <TextBlock Text="일치" Style="{StaticResource MonLegendText}"/>
+                            <TextBlock x:Name="cntUpToDate" Text="0" Style="{StaticResource MonLegendCount}"/>
+                            <Border Style="{StaticResource MonLegendBox}" Background="#CD5C5C"/>
+                            <TextBlock Text="불일치" Style="{StaticResource MonLegendText}"/>
+                            <TextBlock x:Name="cntMismatch" Text="0" Style="{StaticResource MonLegendCount}"/>
+                            <Border Style="{StaticResource MonLegendBox}" Background="#E08A00"/>
+                            <TextBlock Text="적용대기" Style="{StaticResource MonLegendText}"/>
+                            <TextBlock x:Name="cntPending" Text="0" Style="{StaticResource MonLegendCount}"/>
+                            <Border Style="{StaticResource MonLegendBox}" Background="#8B0000"/>
+                            <TextBlock Text="실패" Style="{StaticResource MonLegendText}"/>
+                            <TextBlock x:Name="cntFailed" Text="0" Style="{StaticResource MonLegendCount}"/>
+                            <Border Style="{StaticResource MonLegendBox}" Background="#6B6B6B"/>
+                            <TextBlock Text="무응답" Style="{StaticResource MonLegendText}"/>
+                            <TextBlock x:Name="cntNoResponse" Text="0" Style="{StaticResource MonLegendCount}"/>
+                            <Border Style="{StaticResource MonLegendBox}" Background="#3A3A3A"/>
+                            <TextBlock Text="미설치" Style="{StaticResource MonLegendText}"/>
+                            <TextBlock x:Name="cntNotInstalled" Text="0" Style="{StaticResource MonLegendCount}"/>
+
+                            <TextBlock Text="마지막 갱신" Style="{StaticResource MonLegendText}" Margin="14,0,0,0"/>
+                            <TextBlock x:Name="lblMonUpdated" Text="-" Style="{StaticResource MonLegendCount}"/>
+                        </WrapPanel>
+
+                        <!-- 동작 -->
+                        <DockPanel Grid.Row="2" Margin="5,8,5,0" LastChildFill="False">
+                            <Button DockPanel.Dock="Left" x:Name="btnMonRefresh" Content="새로고침" Width="80" Height="28" FontSize="13" Click="btnMonRefresh_Click"/>
+                            <CheckBox DockPanel.Dock="Left" x:Name="chkMonAutoRefresh" Content="자동 갱신" IsChecked="True" Foreground="AntiqueWhite" FontSize="13" VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="14,0,0,0"
+                                      Checked="chkMonAutoRefresh_Changed" Unchecked="chkMonAutoRefresh_Changed"/>
+                            <ComboBox DockPanel.Dock="Left" x:Name="cmbMonInterval" Width="50" Height="26" FontSize="13" Margin="6,0,0,0" SelectedIndex="0" SelectionChanged="cmbMonInterval_SelectionChanged">
+                                <ComboBoxItem Content="1"/>
+                                <ComboBoxItem Content="5"/>
+                                <ComboBoxItem Content="10"/>
+                            </ComboBox>
+                            <TextBlock DockPanel.Dock="Left" Text="분" Foreground="AntiqueWhite" FontSize="13" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                            <CheckBox DockPanel.Dock="Left" x:Name="chkMonIssuesOnly" Content="이상만 보기" Foreground="AntiqueWhite" FontSize="13" VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="20,0,0,0"
+                                      Checked="chkMonIssuesOnly_Changed" Unchecked="chkMonIssuesOnly_Changed"/>
+
+                            <Button DockPanel.Dock="Right" x:Name="btnMonDeploy" Content="배포 등록" Width="100" Height="28" FontSize="13" FontWeight="Bold" Margin="8,0,0,0" Click="btnMonDeploy_Click"/>
+                            <Button DockPanel.Dock="Right" x:Name="btnMonRunNow" Content="선택 PC 즉시 적용" Width="130" Height="28" FontSize="13" Margin="8,0,0,0" Click="btnMonRunNow_Click"/>
+                            <Button DockPanel.Dock="Right" x:Name="btnMonClearSelection" Content="선택 해제" Width="80" Height="28" FontSize="13" Click="btnMonClearSelection_Click"/>
+                        </DockPanel>
+
+                        <TextBlock Grid.Row="3" x:Name="lblMonMessage" Foreground="Orange" FontSize="13" TextWrapping="Wrap" Margin="7,6,5,0"/>
+
+                        <!-- 설비 그리드 -->
+                        <DataGrid Grid.Row="4" x:Name="MonitorGrid" Margin="5"
+                                  AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                                  HeadersVisibility="Column" SelectionUnit="Cell"
+                                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                                  Background="#2B3442" RowBackground="#2B3442"
+                                  HorizontalGridLinesBrush="#1B2533" VerticalGridLinesBrush="#1B2533">
+                            <DataGrid.Resources>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="Gray"/>
+                                    <Setter Property="Foreground" Value="AntiqueWhite"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Padding" Value="5,3"/>
+                                    <Setter Property="BorderBrush" Value="Black"/>
+                                    <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                                </Style>
+                                <Style TargetType="DataGridCell">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="Foreground" Value="AntiqueWhite"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Foreground" Value="AntiqueWhite"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.Resources>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="100" FontWeight="Bold"/>
+                                <DataGridTextColumn Header="Machine" Binding="{Binding InspectionUnit}" Width="120" FontWeight="Bold"/>
+                                <DataGridTemplateColumn Width="150">
+                                    <DataGridTemplateColumn.Header>
+                                        <StackPanel Orientation="Horizontal">
+                                            <CheckBox Tag="1" Click="MonitorHeaderCheck_Click" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Main" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DataGridTemplateColumn.Header>
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ContentPresenter Content="{Binding M1}" ContentTemplate="{StaticResource MonitorCellTemplate}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Width="150">
+                                    <DataGridTemplateColumn.Header>
+                                        <StackPanel Orientation="Horizontal">
+                                            <CheckBox Tag="2" Click="MonitorHeaderCheck_Click" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Vision1" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DataGridTemplateColumn.Header>
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ContentPresenter Content="{Binding M2}" ContentTemplate="{StaticResource MonitorCellTemplate}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Width="150">
+                                    <DataGridTemplateColumn.Header>
+                                        <StackPanel Orientation="Horizontal">
+                                            <CheckBox Tag="3" Click="MonitorHeaderCheck_Click" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Vision2" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DataGridTemplateColumn.Header>
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ContentPresenter Content="{Binding M3}" ContentTemplate="{StaticResource MonitorCellTemplate}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Width="150">
+                                    <DataGridTemplateColumn.Header>
+                                        <StackPanel Orientation="Horizontal">
+                                            <CheckBox Tag="4" Click="MonitorHeaderCheck_Click" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Vision3" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DataGridTemplateColumn.Header>
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ContentPresenter Content="{Binding M4}" ContentTemplate="{StaticResource MonitorCellTemplate}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Width="150">
+                                    <DataGridTemplateColumn.Header>
+                                        <StackPanel Orientation="Horizontal">
+                                            <CheckBox Tag="5" Click="MonitorHeaderCheck_Click" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Vision4" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DataGridTemplateColumn.Header>
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ContentPresenter Content="{Binding M5}" ContentTemplate="{StaticResource MonitorCellTemplate}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Width="150">
+                                    <DataGridTemplateColumn.Header>
+                                        <StackPanel Orientation="Horizontal">
+                                            <CheckBox Tag="6" Click="MonitorHeaderCheck_Click" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Vision5" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DataGridTemplateColumn.Header>
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ContentPresenter Content="{Binding M6}" ContentTemplate="{StaticResource MonitorCellTemplate}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <!-- 로그 (패치 탭과 동일 내용) -->
+                        <Border Grid.Row="5" BorderBrush="Black" BorderThickness="0.4" Margin="5,0,5,5" Background="Gray">
+                            <ScrollViewer x:Name="MonLogScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                                <TextBlock x:Name="MonLogBox" Margin="5"/>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </TabItem>
+                <TabItem>
+                    <TabItem.Header>
+                        <TextBlock Text="패치" FontSize="14" FontWeight="Bold" Padding="10,2"/>
+                    </TabItem.Header>
+                    <Grid Background="#1B2533">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="3*"/>
+                            <RowDefinition Height="40"/>
+                            <RowDefinition Height="3*"/>
+                            <RowDefinition Height="35"/>
+                        </Grid.RowDefinitions>
+            <Grid Grid.Row="0">
                 <DataGrid x:Name                        ="DataGrid"
                           AutoGenerateColumns           ="False"                                                    
                           IsReadOnly                    ="False"
@@ -424,7 +693,7 @@
                     </DataGrid.Columns>
                 </DataGrid>
             </Grid>
-            <Grid Grid.Row="2">
+            <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions >
                     <ColumnDefinition Width="2.5*"/>
                     <ColumnDefinition Width="2.5*"/>
@@ -464,7 +733,7 @@
 
 
             </Grid>
-            <Grid Grid.Row="3">
+            <Grid Grid.Row="2">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
@@ -479,7 +748,7 @@
 
                 <!--<ListBox Grid.Column="1" x:Name="LogBox" Margin="5,5,5,5" Height="Auto"/>-->
             </Grid>
-            <Grid Grid.Row="4">
+            <Grid Grid.Row="3">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
@@ -542,6 +811,9 @@
                     />
                 </StackPanel>
             </Grid>
+                    </Grid>
+                </TabItem>
+            </TabControl>
         </Grid>
     </Grid>
 </Window>
