@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -103,15 +104,27 @@ namespace PatchAgent
             {
                 _log.Info($"{_config.ProcessName} 종료 확인됨. 패치 적용 시작 (target version={remoteVersion}).");
 
-                BackupDirectory(_localBin);
+                List<string> backupList = new List<string>();
+                string backupType = _localBin.Equals(_localConfigDir, StringComparison.OrdinalIgnoreCase) ? "config" : "bin";
+                string basePath = Path.Combine(_localBackup, DateTime.Now.ToString("yyMMdd"));
+                string todayPath = basePath;
+                int counter = 2;
+                while (Directory.Exists(todayPath))
+                {
+                    todayPath = $"{basePath}_{counter++}";
+                }
+
+                string backupPath = Path.Combine(_localBackup, DateTime.Now.ToString("yyMMdd"), backupType);
+
+                BackupDirectory(_localBin,todayPath);
                 if (string.Equals(_config.ProcessName, "HDSInspector.exe", StringComparison.OrdinalIgnoreCase))
                 {
-                    BackupDirectory(_localConfigDir);
+                    BackupDirectory(_localConfigDir,todayPath);
                 }
 
                 CopyDirectoryOverwrite(_localTempUpdate, _localBin, excludeFileName: "staged_version.txt");
 
-                Directory.CreateDirectory(_localBin);
+                if (!Directory.Exists(_localBin)) Directory.CreateDirectory(_localBin);
                 File.WriteAllText(_localVersionMarker, remoteVersion);
 
                 Thread.Sleep(1000);
@@ -123,7 +136,12 @@ namespace PatchAgent
                     {
                         try
                         {
-                            Process.Start(exePath);
+                            Process.Start(new ProcessStartInfo(exePath)
+                            {
+                                WorkingDirectory = _localBin,
+                                UseShellExecute = true
+                            });
+                            _log.Warn($"{exePath} 실행 성공.");
                         }
                         catch(Exception e)
                         {
@@ -226,12 +244,34 @@ namespace PatchAgent
             }
         }
 
+        private static void BackupDirectory(string src, string backupPath)
+        {
+            if (string.IsNullOrEmpty(src) || string.IsNullOrEmpty(backupPath)) return;
+
+            var dir = new DirectoryInfo(src);
+            if (!dir.Exists) return;
+
+            string backupType = (src.Contains("bin")) ? "bin" : "config";
+            string backupTypePath = Path.Combine(backupPath, backupType);
+            if (!Directory.Exists(backupTypePath)) Directory.CreateDirectory(backupTypePath);
+
+            CopyDirectoryOverwrite(src, backupTypePath, excludeFileName: null);
+        }
+
         private void BackupDirectory(string sourceDir)
         {
             if (!Directory.Exists(sourceDir)) return;
             if (!new DirectoryInfo(sourceDir).GetFiles().Any()) return;
 
             string backupType = sourceDir.Equals(_localConfigDir, StringComparison.OrdinalIgnoreCase) ? "config" : "bin";
+            string basePath = Path.Combine(_localBackup, DateTime.Now.ToString("yyMMdd"));
+            string todayPath = basePath;
+            int counter = 2;
+            while (Directory.Exists(todayPath))
+            {
+                todayPath = $"{basePath}_{counter++}";
+            }
+
             string backupPath = Path.Combine(_localBackup, DateTime.Now.ToString("yyMMdd"), backupType);
             Directory.CreateDirectory(backupPath);
             CopyDirectoryOverwrite(sourceDir, backupPath, excludeFileName: null);
