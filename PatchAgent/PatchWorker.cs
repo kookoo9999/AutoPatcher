@@ -175,20 +175,7 @@ namespace PatchAgent
 
             string centralPackageDir = GetCentralPackageDir(remoteVersion);
             _log.Info($"새 버전 스테이징 중: {remoteVersion} (경로: {centralPackageDir})");
-            ClearFolder(_localTempUpdate);
-            try
-            {
-                Directory.CreateDirectory(_localTempUpdate);
-                CopyDirectoryOverwrite(centralPackageDir, _localTempUpdate, excludeFileName: null);
-                File.WriteAllText(_stagedVersionMarker, remoteVersion);
-                _log.Info($"스테이징 완료: {remoteVersion}");
-            }
-            catch
-            { 
-                ClearFolder(_localTempUpdate);
-                throw;
-            }
-        }
+            ClearFolder(_localTempUpdate);                   
             try
             {
                 Directory.CreateDirectory(_localTempUpdate);
