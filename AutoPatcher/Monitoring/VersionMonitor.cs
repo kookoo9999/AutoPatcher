@@ -132,7 +132,7 @@ namespace AutoPatcher
             if (!snap.ByIp.TryGetValue(cell.Ip, out AgentStatus st))
             {
                 cell.State = MonitorState.NotInstalled;
-                cell.Text = "미설치";
+                cell.Text = "-";
                 cell.Detail = $"상태파일 없음 (에이전트 미설치 또는 구버전)\n경로: {Path.Combine(snap.Root, "status")}";
                 return;
             }
