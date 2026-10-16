@@ -26,7 +26,7 @@ namespace AutoPatcher
             MonitorGrid.ItemsSource = DataGridItems;
             lblMonCentral.Text = $"중앙: {_monConfig.CentralServer}";
 
-            _monitorTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(_monConfig.RefreshMinutes) };
+            _monitorTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(_monConfig.RefreshSeconds) };
             _monitorTimer.Tick += async (s, e) => await RefreshMonitorAsync();
             _monitorTimer.Start();
 
@@ -127,7 +127,7 @@ namespace AutoPatcher
                 else
                 {
                     ApplySnapshots(main, vision);
-                    lblMonUpdated.Text = $"자동 갱신 {_monConfig.RefreshMinutes}분 · 마지막 갱신 {DateTime.Now:HH:mm:ss}";
+                    lblMonUpdated.Text = $"자동 갱신 {_monConfig.RefreshSeconds}초 · 마지막 갱신 {DateTime.Now:HH:mm:ss}";
 
                     SetRefreshError(string.Join("  /  ", new[] { main.Error, vision.Error }.Where(e => e != null)));
                 }

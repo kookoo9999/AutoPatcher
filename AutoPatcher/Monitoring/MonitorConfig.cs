@@ -14,7 +14,10 @@ namespace AutoPatcher
         public string ExcelPath { get; set; } = @"E:\AutoPatch";
         public string CentralServer { get; set; } = @"E:\AutoPatch\Distribution";
         public int StaleMinutes { get; set; } = 10;
-        public int RefreshMinutes { get; set; } = 1;
+        public int RefreshSeconds { get; set; } = 60;
+
+        // 너무 짧으면 중앙 공유를 불필요하게 자주 읽는다. 상태파일은 에이전트 폴링(수 분)마다만 바뀐다.
+        private const int MinRefreshSeconds = 5;
 
         public static string FilePath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "AutoPatcher.ini");
 
@@ -43,11 +46,13 @@ namespace AutoPatcher
             if (values.TryGetValue("CentralServer", out string central) && central.Length > 0) config.CentralServer = central;
             if (values.TryGetValue("StaleMinutes", out string stale) && int.TryParse(stale, out int staleMin) && staleMin > 0)
                 config.StaleMinutes = staleMin;
-            if (values.TryGetValue("RefreshMinutes", out string refresh) && int.TryParse(refresh, out int refreshMin) && refreshMin > 0)
-                config.RefreshMinutes = refreshMin;
+            if (values.TryGetValue("RefreshSeconds", out string refresh) && int.TryParse(refresh, out int refreshSec) && refreshSec > 0)
+                config.RefreshSeconds = Math.Max(MinRefreshSeconds, refreshSec);
+            else if (values.TryGetValue("RefreshMinutes", out string oldRefresh) && int.TryParse(oldRefresh, out int refreshMin) && refreshMin > 0)
+                config.RefreshSeconds = refreshMin * 60; // 이전 버전 ini 호환
 
             // 이전 버전 ini에는 없는 항목이 있으면 현재 값으로 다시 써서 편집할 수 있게 한다.
-            string[] keys = { "Mode", "ExcelPath", "CentralServer", "StaleMinutes", "RefreshMinutes" };
+            string[] keys = { "Mode", "ExcelPath", "CentralServer", "StaleMinutes", "RefreshSeconds" };
             if (keys.Any(k => !values.ContainsKey(k)))
             {
                 try { config.Save(); }
@@ -68,8 +73,8 @@ namespace AutoPatcher
                 $"CentralServer={CentralServer}\r\n" +
                 "# 상태파일이 이 시간(분) 이상 갱신되지 않으면 무응답으로 표시\r\n" +
                 $"StaleMinutes={StaleMinutes}\r\n" +
-                "# 자동 갱신 주기(분)\r\n" +
-                $"RefreshMinutes={RefreshMinutes}\r\n";
+                $"# 자동 갱신 주기(초, 최소 {MinRefreshSeconds})\r\n" +
+                $"RefreshSeconds={RefreshSeconds}\r\n";
             File.WriteAllText(FilePath, content);
         }
 
