@@ -186,7 +186,6 @@
                                 </Style>
                             </DataGrid.Resources>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="그룹" Binding="{Binding GroupLabel}" Width="110" ElementStyle="{StaticResource MonCenterText}" Foreground="#C9D6E3"/>
                                 <DataGridTextColumn Header="설비" Binding="{Binding InspectionUnit}" Width="100" ElementStyle="{StaticResource MonCenterText}"/>
                                 <DataGridTemplateColumn Header="Main" Width="*">
                                     <DataGridTemplateColumn.CellTemplate>

@@ -2600,10 +2600,6 @@ namespace AutoPatcher
         public string Group { get; set; }
         public string InspectionUnit { get; set; }
 
-        // 모니터링 그리드용: 같은 그룹이 이어지면 첫 행에만 그룹명을 둔다.
-        private string _groupLabel;
-        public string GroupLabel { get => _groupLabel; set { _groupLabel = value; OnPropertyChanged(nameof(GroupLabel)); } }
-
         // 모니터링 탭 셀 (PC1=Main, PC2~PC6=Vision1~5)
         public AutoPatcher.MonitorCell M1 { get; } = new AutoPatcher.MonitorCell();
         public AutoPatcher.MonitorCell M2 { get; } = new AutoPatcher.MonitorCell();

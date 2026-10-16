@@ -68,14 +68,6 @@ namespace AutoPatcher
             lblMonTitle.Text = string.IsNullOrEmpty(ModeType) ? "버전 모니터링" : $"{ModeType} 버전 모니터링";
             lblMonExcel.Text = string.IsNullOrEmpty(ExcelPath) ? "엑셀: -" : $"엑셀: {ExcelPath} ({ModeType} 시트)";
 
-            // 같은 그룹이 이어지면 첫 행에만 그룹명을 표시한다.
-            string prev = null;
-            foreach (RowData row in DataGridItems)
-            {
-                row.GroupLabel = row.Group != prev ? row.Group : string.Empty;
-                prev = row.Group;
-            }
-
             _ = RefreshMonitorAsync();
         }
 
