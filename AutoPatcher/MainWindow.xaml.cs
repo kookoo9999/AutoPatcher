@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -212,6 +212,7 @@ namespace AutoPatcher
             DataGrid.ItemsSource = DataGridItems;
             FileListBox.ItemsSource = FileList;
             InitMonitor();
+            InitTrayIcon();
         }
 
         string GetStringLogLevel(LogLevel lv)

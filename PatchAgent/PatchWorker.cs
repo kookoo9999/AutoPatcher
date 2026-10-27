@@ -78,6 +78,34 @@ namespace PatchAgent
                 WriteStatus("StageFail", remoteVersion, ex.Message);
                 return;
             }
+            finally
+            {
+                if(!Process.GetProcessesByName(Path.GetFileNameWithoutExtension(_config.ProcessName)).Any())
+                {
+                    if (string.Equals(_config.ProcessName, "HDSInspector.exe", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string exePath = Path.Combine(_localBin, _config.ProcessName);
+                        if (File.Exists(exePath))
+                        {
+                            try
+                            {
+                                Process.Start(new ProcessStartInfo(exePath)
+                                {
+                                    WorkingDirectory = _localBin,
+                                    UseShellExecute = true
+                                });
+                                _log.Warn($"{exePath} 실행 성공.");
+                            }
+                            catch (Exception e)
+                            {
+                                _log.Warn($"{_config.ProcessName} 실행 실패");
+
+                            }
+                        }
+                    }
+                }
+            }
+
 
             string processBaseName = Path.GetFileNameWithoutExtension(_config.ProcessName);
             //bool running = Process.GetProcessesByName(processBaseName).Any();
