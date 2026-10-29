@@ -1,4 +1,4 @@
-﻿<Window x:Class="AutoPatcher.MainWindow"
+<Window x:Class="AutoPatcher.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -130,6 +130,7 @@
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                                     <Button x:Name="btnMonRefresh" Content="새로고침" Style="{StaticResource MonButton}" Click="btnMonRefresh_Click"/>
                                     <Button x:Name="btnMonDeploy" Content="배포 등록" Style="{StaticResource MonButton}" FontWeight="Bold" Margin="8,0,0,0" Click="btnMonDeploy_Click"/>
+                                    <Button x:Name="btnMonAgentDeploy" Content="에이전트 배포" Style="{StaticResource MonButton}" FontWeight="Bold" Margin="8,0,0,0" Click="btnMonAgentDeploy_Click"/>
                                 </StackPanel>
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
                                     <Border Style="{StaticResource MonChipBox}" Background="#2E8B57"/>
