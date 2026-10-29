@@ -111,48 +111,52 @@
                         </Grid.RowDefinitions>
 
                         <!-- 헤더: 사이트 / 중앙 버전 / 상태별 대수 / 버튼 -->
-                        <Border Grid.Row="0" BorderBrush="#2E3A4D" BorderThickness="0,0,0,1" Padding="16,12">
-                            <DockPanel LastChildFill="False">
-                                <TextBlock DockPanel.Dock="Left" x:Name="lblMonTitle" Text="버전 모니터링" FontSize="20" FontWeight="Bold" Foreground="#F5EBDC" VerticalAlignment="Center"/>
-                                <Border DockPanel.Dock="Left" Style="{StaticResource MonServerBox}" Margin="18,0,0,0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock x:Name="lblServerMainType" Text="중앙 Main" Foreground="#9FB0C4" FontSize="12" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="lblServerMain" Text="-" Foreground="#7CFC00" FontSize="20" FontWeight="Bold" Margin="6,0,0,0" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Border>
-                                <Border DockPanel.Dock="Left" Style="{StaticResource MonServerBox}" Margin="10,0,0,0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock x:Name="lblServerVisionType" Text="중앙 Vision" Foreground="#9FB0C4" FontSize="12" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="lblServerVision" Text="-" Foreground="#7CFC00" FontSize="20" FontWeight="Bold" Margin="6,0,0,0" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Border>
-
-                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- 헤더: 상단 버튼 3개 / 하단 사이트·중앙 버전·상태별 대수 -->
+                        <Border Grid.Row="0" BorderBrush="#2E3A4D" BorderThickness="0,0,0,1" Padding="16,10,16,12">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8">
                                     <Button x:Name="btnMonRefresh" Content="새로고침" Style="{StaticResource MonButton}" Click="btnMonRefresh_Click"/>
                                     <Button x:Name="btnMonDeploy" Content="배포 등록" Style="{StaticResource MonButton}" FontWeight="Bold" Margin="8,0,0,0" Click="btnMonDeploy_Click"/>
                                     <Button x:Name="btnMonAgentDeploy" Content="에이전트 배포" Style="{StaticResource MonButton}" FontWeight="Bold" Margin="8,0,0,0" Click="btnMonAgentDeploy_Click"/>
                                 </StackPanel>
-                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
-                                    <Border Style="{StaticResource MonChipBox}" Background="#2E8B57"/>
-                                    <TextBlock Text="일치" Style="{StaticResource MonChipText}"/>
-                                    <TextBlock x:Name="cntUpToDate" Text="0" Style="{StaticResource MonChipCount}"/>
-                                    <Border Style="{StaticResource MonChipBox}" Background="#CD5C5C"/>
-                                    <TextBlock Text="불일치" Style="{StaticResource MonChipText}"/>
-                                    <TextBlock x:Name="cntMismatch" Text="0" Style="{StaticResource MonChipCount}"/>
-                                    <Border Style="{StaticResource MonChipBox}" Background="#E08A00"/>
-                                    <TextBlock Text="적용대기" Style="{StaticResource MonChipText}"/>
-                                    <TextBlock x:Name="cntPending" Text="0" Style="{StaticResource MonChipCount}"/>
-                                    <Border Style="{StaticResource MonChipBox}" Background="#8B0000"/>
-                                    <TextBlock Text="실패" Style="{StaticResource MonChipText}"/>
-                                    <TextBlock x:Name="cntFailed" Text="0" Style="{StaticResource MonChipCount}"/>
-                                    <Border Style="{StaticResource MonChipBox}" Background="#6B6B6B"/>
-                                    <TextBlock Text="무응답" Style="{StaticResource MonChipText}"/>
-                                    <TextBlock x:Name="cntNoResponse" Text="0" Style="{StaticResource MonChipCount}"/>
-                                    <Border Style="{StaticResource MonChipBox}" Background="#3A3A3A"/>
-                                    <TextBlock Text="미설치" Style="{StaticResource MonChipText}"/>
-                                    <TextBlock x:Name="cntNotInstalled" Text="0" Style="{StaticResource MonChipCount}"/>
-                                </StackPanel>
-                            </DockPanel>
+
+                                <DockPanel LastChildFill="False">
+                                    <TextBlock DockPanel.Dock="Left" x:Name="lblMonTitle" Text="버전 모니터링" FontSize="20" FontWeight="Bold" Foreground="#F5EBDC" VerticalAlignment="Center"/>
+                                    <Border DockPanel.Dock="Left" Style="{StaticResource MonServerBox}" Margin="18,0,0,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock x:Name="lblServerMainType" Text="중앙 Main" Foreground="#9FB0C4" FontSize="12" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="lblServerMain" Text="-" Foreground="#7CFC00" FontSize="20" FontWeight="Bold" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border DockPanel.Dock="Left" Style="{StaticResource MonServerBox}" Margin="10,0,0,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock x:Name="lblServerVisionType" Text="중앙 Vision" Foreground="#9FB0C4" FontSize="12" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="lblServerVision" Text="-" Foreground="#7CFC00" FontSize="20" FontWeight="Bold" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border Style="{StaticResource MonChipBox}" Background="#2E8B57"/>
+                                        <TextBlock Text="일치" Style="{StaticResource MonChipText}"/>
+                                        <TextBlock x:Name="cntUpToDate" Text="0" Style="{StaticResource MonChipCount}"/>
+                                        <Border Style="{StaticResource MonChipBox}" Background="#CD5C5C"/>
+                                        <TextBlock Text="불일치" Style="{StaticResource MonChipText}"/>
+                                        <TextBlock x:Name="cntMismatch" Text="0" Style="{StaticResource MonChipCount}"/>
+                                        <Border Style="{StaticResource MonChipBox}" Background="#E08A00"/>
+                                        <TextBlock Text="적용대기" Style="{StaticResource MonChipText}"/>
+                                        <TextBlock x:Name="cntPending" Text="0" Style="{StaticResource MonChipCount}"/>
+                                        <Border Style="{StaticResource MonChipBox}" Background="#8B0000"/>
+                                        <TextBlock Text="실패" Style="{StaticResource MonChipText}"/>
+                                        <TextBlock x:Name="cntFailed" Text="0" Style="{StaticResource MonChipCount}"/>
+                                        <Border Style="{StaticResource MonChipBox}" Background="#6B6B6B"/>
+                                        <TextBlock Text="무응답" Style="{StaticResource MonChipText}"/>
+                                        <TextBlock x:Name="cntNoResponse" Text="0" Style="{StaticResource MonChipCount}"/>
+                                        <Border Style="{StaticResource MonChipBox}" Background="#3A3A3A"/>
+                                        <TextBlock Text="미설치" Style="{StaticResource MonChipText}"/>
+                                        <TextBlock x:Name="cntNotInstalled" Text="0" Style="{StaticResource MonChipCount}"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </StackPanel>
                         </Border>
 
                         <!-- 설비 그리드 (설비가 많으면 세로 스크롤) -->
