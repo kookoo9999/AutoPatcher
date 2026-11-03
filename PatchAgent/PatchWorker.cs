@@ -49,108 +49,105 @@ namespace PatchAgent
 
         public void RunCycle()
         {
-            string remoteVersion = null;
             try
             {
-                for (int i = 0; i < 5; i++) Thread.Sleep(1000);
-
-                if (!File.Exists(_centralVersionFile))
+                string remoteVersion = null;
+                try
                 {
-                    _log.Warn($"중앙 버전 파일에 접근할 수 없습니다: {_centralVersionFile}");
+                    for (int i = 0; i < 5; i++) Thread.Sleep(1000);
+
+                    if (!File.Exists(_centralVersionFile))
+                    {
+                        _log.Warn($"중앙 버전 파일에 접근할 수 없습니다: {_centralVersionFile}");
+                        return;
+                    }
+
+                    remoteVersion = File.ReadAllText(_centralVersionFile).Trim();
+                    string localVersion = ReadLocalVersion();
+
+                    if (string.Equals(remoteVersion, localVersion, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _log.Info($"이미 최신 버전입니다 서버 : {remoteVersion} 로컬 : {localVersion}. 종료.");
+                        WriteStatus("UpToDate", remoteVersion, null);
+                        return;
+                    }
+
+                    EnsureStaged(remoteVersion);
+                }
+                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                {
+                    _log.Warn($"중앙 공유({_centralModeRoot}) 접근 실패 - 다음 주기에 재시도합니다: {ex.Message}");
+                    WriteStatus("StageFail", remoteVersion, ex.Message);
                     return;
                 }
 
-                remoteVersion = File.ReadAllText(_centralVersionFile).Trim();
-                string localVersion = ReadLocalVersion();
-
-                if (string.Equals(remoteVersion, localVersion, StringComparison.OrdinalIgnoreCase))
+                string processBaseName = Path.GetFileNameWithoutExtension(_config.ProcessName);
+                //bool running = Process.GetProcessesByName(processBaseName).Any();
+                int cnt = 0;
+                while (Process.GetProcessesByName(processBaseName).Any())
                 {
-                    _log.Info($"이미 최신 버전입니다 서버 : {remoteVersion} 로컬 : {localVersion}. 종료.");
-                    WriteStatus("UpToDate", remoteVersion, null);
-                    return;
+                    if (cnt >= 10)
+                    {
+                        _log.Info($"{_config.ProcessName} 실행 중 - 다음 주기에 재시도");
+                        WriteStatus("Waiting", remoteVersion, null);
+                        return;
+                    }
+                    Thread.Sleep(1000);
+                    cnt++;
                 }
 
-                EnsureStaged(remoteVersion);
-            }
-            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
-            {
-                _log.Warn($"중앙 공유({_centralModeRoot}) 접근 실패 - 다음 주기에 재시도합니다: {ex.Message}");
-                WriteStatus("StageFail", remoteVersion, ex.Message);
-                return;
+                try
+                {
+                    _log.Info($"{_config.ProcessName} 종료 확인됨. 패치 적용 시작 (target version={remoteVersion}).");
+
+                    List<string> backupList = new List<string>();
+                    string backupType = _localBin.Equals(_localConfigDir, StringComparison.OrdinalIgnoreCase) ? "config" : "bin";
+                    string basePath = Path.Combine(_localBackup, DateTime.Now.ToString("yyMMdd"));
+                    string todayPath = basePath;
+                    int counter = 2;
+                    while (Directory.Exists(todayPath))
+                    {
+                        todayPath = $"{basePath}_{counter++}";
+                    }
+
+                    string backupPath = Path.Combine(_localBackup, DateTime.Now.ToString("yyMMdd"), backupType);
+
+                    BackupDirectory(_localBin, todayPath);
+                    if (string.Equals(_config.ProcessName, "HDSInspector.exe", StringComparison.OrdinalIgnoreCase))
+                    {
+                        BackupDirectory(_localConfigDir, todayPath);
+                    }
+
+                    CopyDirectoryOverwrite(_localTempUpdate, _localBin, excludeFileName: "staged_version.txt");
+
+                    if (!Directory.Exists(_localBin)) Directory.CreateDirectory(_localBin);
+                    File.WriteAllText(_localVersionMarker, remoteVersion);
+
+                    Thread.Sleep(1000);
+
+                    ClearFolder(_localTempUpdate);
+
+                    CleanupOldBackups();
+
+                    _log.Info($"패치 적용 완료 (version={remoteVersion}).");
+                    WriteStatus("Success", remoteVersion, null);
+                }
+                catch (Exception ex)
+                {
+                    _log.Error($"패치 적용 실패: {ex}");
+                    WriteStatus("Fail", remoteVersion, ex.Message);
+                }
             }
             finally
             {
-                if(!Process.GetProcessesByName(Path.GetFileNameWithoutExtension(_config.ProcessName)).Any())
-                {
-                    if (string.Equals(_config.ProcessName, "HDSInspector.exe", StringComparison.OrdinalIgnoreCase))
-                    {
-                        string exePath = Path.Combine(_localBin, _config.ProcessName);
-                        if (File.Exists(exePath))
-                        {
-                            try
-                            {
-                                Process.Start(new ProcessStartInfo(exePath)
-                                {
-                                    WorkingDirectory = _localBin,
-                                    UseShellExecute = true
-                                });
-                                _log.Warn($"{exePath} 실행 성공.");
-                            }
-                            catch (Exception e)
-                            {
-                                _log.Warn($"{_config.ProcessName} 실행 실패");
-
-                            }
-                        }
-                    }
-                }
+                EnsureMainProcessRunning();
             }
+        }
 
-
-            string processBaseName = Path.GetFileNameWithoutExtension(_config.ProcessName);
-            //bool running = Process.GetProcessesByName(processBaseName).Any();
-            int cnt = 0;
-            while(Process.GetProcessesByName(processBaseName).Any())
+        private void EnsureMainProcessRunning()
+        {
+            if (!Process.GetProcessesByName(Path.GetFileNameWithoutExtension(_config.ProcessName)).Any())
             {
-                if (cnt >= 10)
-                {
-                    _log.Info($"{_config.ProcessName} 실행 중 - 다음 주기에 재시도");
-                    WriteStatus("Waiting", remoteVersion, null);
-                    return;
-                }
-                Thread.Sleep(1000);
-                cnt++;
-            }
-
-            try
-            {
-                _log.Info($"{_config.ProcessName} 종료 확인됨. 패치 적용 시작 (target version={remoteVersion}).");
-
-                List<string> backupList = new List<string>();
-                string backupType = _localBin.Equals(_localConfigDir, StringComparison.OrdinalIgnoreCase) ? "config" : "bin";
-                string basePath = Path.Combine(_localBackup, DateTime.Now.ToString("yyMMdd"));
-                string todayPath = basePath;
-                int counter = 2;
-                while (Directory.Exists(todayPath))
-                {
-                    todayPath = $"{basePath}_{counter++}";
-                }
-
-                string backupPath = Path.Combine(_localBackup, DateTime.Now.ToString("yyMMdd"), backupType);
-
-                BackupDirectory(_localBin,todayPath);
-                if (string.Equals(_config.ProcessName, "HDSInspector.exe", StringComparison.OrdinalIgnoreCase))
-                {
-                    BackupDirectory(_localConfigDir,todayPath);
-                }
-
-                CopyDirectoryOverwrite(_localTempUpdate, _localBin, excludeFileName: "staged_version.txt");
-
-                if (!Directory.Exists(_localBin)) Directory.CreateDirectory(_localBin);
-                File.WriteAllText(_localVersionMarker, remoteVersion);
-
-                Thread.Sleep(1000);
-
                 if (string.Equals(_config.ProcessName, "HDSInspector.exe", StringComparison.OrdinalIgnoreCase))
                 {
                     string exePath = Path.Combine(_localBin, _config.ProcessName);
@@ -165,25 +162,12 @@ namespace PatchAgent
                             });
                             _log.Warn($"{exePath} 실행 성공.");
                         }
-                        catch(Exception e)
+                        catch (Exception e)
                         {
                             _log.Warn($"{_config.ProcessName} 실행 실패");
-                            
                         }
                     }
                 }
-
-                ClearFolder(_localTempUpdate);
-
-                CleanupOldBackups();
-
-                _log.Info($"패치 적용 완료 (version={remoteVersion}).");
-                WriteStatus("Success", remoteVersion, null);
-            }
-            catch (Exception ex)
-            {
-                _log.Error($"패치 적용 실패: {ex}");
-                WriteStatus("Fail", remoteVersion, ex.Message);
             }
         }
 
@@ -203,7 +187,7 @@ namespace PatchAgent
 
             string centralPackageDir = GetCentralPackageDir(remoteVersion);
             _log.Info($"새 버전 스테이징 중: {remoteVersion} (경로: {centralPackageDir})");
-            ClearFolder(_localTempUpdate);                   
+            ClearFolder(_localTempUpdate);
             try
             {
                 Directory.CreateDirectory(_localTempUpdate);
