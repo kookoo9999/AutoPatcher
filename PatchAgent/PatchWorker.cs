@@ -56,23 +56,38 @@ namespace PatchAgent
                 {
                     for (int i = 0; i < 5; i++) Thread.Sleep(1000);
 
-                    if (!File.Exists(_centralVersionFile))
+                    remoteVersion = ReadRemoteVersion();
+                    if (string.IsNullOrEmpty(remoteVersion))
                     {
                         _log.Warn($"중앙 버전 파일에 접근할 수 없습니다: {_centralVersionFile}");
                         return;
                     }
 
-                    remoteVersion = File.ReadAllText(_centralVersionFile).Trim();
                     string localVersion = ReadLocalVersion();
 
                     if (string.Equals(remoteVersion, localVersion, StringComparison.OrdinalIgnoreCase))
                     {
+                        if (Directory.Exists(_localTempUpdate))
+                        {
+                            ClearFolder(_localTempUpdate);
+                            _log.Info("로컬이 이미 최신 버전이므로 잔여 temp_update 폴더를 정리했습니다.");
+                        }
                         _log.Info($"이미 최신 버전입니다 서버 : {remoteVersion} 로컬 : {localVersion}. 종료.");
                         WriteStatus("UpToDate", remoteVersion, null);
                         return;
                     }
 
                     EnsureStaged(remoteVersion);
+
+                    // 스테이징 완료 후 패치 적용 직전에 로컬 버전 재확인 (일시적 I/O 오류로 인한 오인 스테이징 방어)
+                    string verifyLocal = ReadLocalVersion();
+                    if (string.Equals(remoteVersion, verifyLocal, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _log.Info($"스테이징 후 로컬 버전을 재확인한 결과 이미 최신 버전({verifyLocal})입니다. temp_update를 정리하고 종료합니다.");
+                        ClearFolder(_localTempUpdate);
+                        WriteStatus("UpToDate", remoteVersion, null);
+                        return;
+                    }
                 }
                 catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
                 {
@@ -164,7 +179,7 @@ namespace PatchAgent
                         }
                         catch (Exception e)
                         {
-                            _log.Warn($"{_config.ProcessName} 실행 실패");
+                            _log.Warn($"{_config.ProcessName} 실행 실패: {e.Message}");
                         }
                     }
                 }
@@ -203,8 +218,44 @@ namespace PatchAgent
             }
         }
 
-        private string ReadLocalVersion() =>
-            File.Exists(_localVersionMarker) ? File.ReadAllText(_localVersionMarker).Trim() : string.Empty;
+        private string ReadLocalVersion()
+        {
+            for (int attempt = 1; attempt <= 3; attempt++)
+            {
+                try
+                {
+                    if (File.Exists(_localVersionMarker))
+                        return File.ReadAllText(_localVersionMarker).Trim();
+                }
+                catch (IOException)
+                {
+                }
+                Thread.Sleep(200);
+            }
+            return string.Empty;
+        }
+
+        private string ReadRemoteVersion()
+        {
+            for (int attempt = 1; attempt <= 3; attempt++)
+            {
+                try
+                {
+                    if (File.Exists(_centralVersionFile))
+                    {
+                        string ver = File.ReadAllText(_centralVersionFile).Trim();
+                        if (!string.IsNullOrEmpty(ver))
+                            return ver;
+                    }
+                }
+                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                {
+                    if (attempt == 3) throw;
+                }
+                Thread.Sleep(300);
+            }
+            return null;
+        }
 
         // 배포측 계약: version.txt를 갱신하기 전에 package_{version} 폴더를 완전히 다 올려야 한다.
         // 버전별로 폴더가 분리되어 있어, 배포 도중인 다음 버전과 절대 경로가 겹치지 않는다

@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoPatcher - 버전 모니터링 대시보드 (Figma Design Sample)</title>
+  <style>
+    :root {
+      /* Colors */
+      --bg-canvas: #111822;
+      --bg-panel: #1B2533;
+      --bg-card: #24303F;
+      --bg-card-hover: #2D3C4E;
+      --border-subtle: #2E3A4D;
+      --border-strong: #3B4A60;
+
+      --text-primary: #F5EBDC;
+      --text-secondary: #9FB0C4;
+      --text-muted: #627285;
+
+      /* Status Colors */
+      --status-uptodate: #2E8B57;
+      --status-mismatch: #CD5C5C;
+      --status-pending: #E08A00;
+      --status-failed: #8B0000;
+      --status-noresponse: #6B6B6B;
+      --status-notinstalled: #3A3A3A;
+
+      --accent-green: #7CFC00;
+      --accent-blue: #38BDF8;
+
+      /* Typography */
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Pretendard", "Noto Sans KR", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      font-family: var(--font-family);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .figma-frame {
+      width: 100%;
+      max-width: 1440px;
+      background: var(--bg-panel);
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Window Titlebar */
+    .titlebar {
+      height: 38px;
+      background: #141C27;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      user-select: none;
+    }
+
+    .titlebar-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge-mode {
+      background: #3B4A60;
+      color: var(--accent-green);
+      font-weight: 700;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .window-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .win-btn {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #4A5568;
+    }
+    .win-btn.close { background: #E53E3E; }
+    .win-btn.min { background: #ED8936; }
+    .win-btn.max { background: #38A169; }
+
+    /* Top Action Bar (Buttons Row) */
+    .header-actions-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 20px 10px 20px;
+      border-bottom: 1px solid rgba(46, 58, 77, 0.5);
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 6px;
+    }
+
+    .nav-tab {
+      padding: 8px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      background: transparent;
+      transition: all 0.2s;
+    }
+
+    .nav-tab.active {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-strong);
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 36px;
+      padding: 0 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      background: var(--border-strong);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: #4B5E78;
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      background: #2563EB;
+      border-color: #3B82F6;
+    }
+
+    .btn-primary:hover {
+      background: #1D4ED8;
+    }
+
+    .btn-emerald {
+      background: #059669;
+      border-color: #10B981;
+    }
+
+    .btn-emerald:hover {
+      background: #047857;
+    }
+
+    /* Status & Server Header Row */
+    .header-status-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 20px 16px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .title-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 170px;
+    }
+
+    .title-area h1 {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.5px;
+    }
+
+    .server-cards {
+      display: flex;
+      gap: 10px;
+    }
+
+    .server-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .server-card .type {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .server-card .version {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--accent-green);
+    }
+
+    /* 6-Column Equal Status Cards Grid */
+    .status-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+    }
+
+    .status-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.2s;
+    }
+
+    .status-card:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .chip-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .chip-label {
+      font-size: 13px;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .chip-count {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-left: 2px;
+    }
+
+    /* Table Container */
+    .table-container {
+      padding: 16px 20px;
+      overflow-x: auto;
+      flex: 1;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+    }
+
+    th {
+      background: #334155;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 700;
+      text-align: center;
+      padding: 10px 12px;
+      border-bottom: 2px solid var(--border-subtle);
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    th:last-child {
+      border-right: none;
+    }
+
+    td {
+      background: #202C3D;
+      padding: 8px 10px;
+      text-align: center;
+      border-bottom: 1px solid #141C27;
+      border-right: 1px solid #141C27;
+      font-size: 13px;
+    }
+
+    td:last-child {
+      border-right: none;
+    }
+
+    tr:nth-child(even) td {
+      background: #253346;
+    }
+
+    .unit-cell {
+      font-weight: 800;
+      color: var(--text-primary);
+      font-size: 14px;
+      background: #1A2534 !important;
+    }
+
+    /* Cell Status Badges */
+    .cell-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 6px;
+      border-radius: 4px;
+      color: #FFFFFF;
+      min-height: 38px;
+      transition: filter 0.15s;
+      cursor: pointer;
+    }
+
+    .cell-badge:hover {
+      filter: brightness(1.15);
+    }
+
+    .cell-badge .version-text {
+      font-weight: 800;
+      font-size: 14px;
+      line-height: 1.2;
+    }
+
+    .cell-badge .state-label {
+      font-size: 10px;
+      opacity: 0.9;
+      font-weight: 500;
+      margin-top: 1px;
+    }
+
+    .badge-uptodate { background: var(--status-uptodate); }
+    .badge-mismatch { background: var(--status-mismatch); }
+    .badge-pending { background: var(--status-pending); }
+    .badge-failed { background: var(--status-failed); }
+    .badge-noresponse { background: var(--status-noresponse); }
+    .badge-notinstalled { background: var(--status-notinstalled); color: #B0B0B0; }
+    .badge-empty { background: transparent; color: #556275; }
+
+    /* Footer Info Bar */
+    .footer-bar {
+      height: 34px;
+      background: #141C27;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .footer-left span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .footer-message {
+      color: #F59E0B;
+      font-weight: 600;
+    }
+
+    .footer-right {
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="figma-frame">
+    <!-- Window Titlebar -->
+    <div class="titlebar">
+      <div class="titlebar-info">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7CFC00" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        <span>HDS Auto Patcher [ Version 2.0.4 모니터링/Patch Agent 버전 ]</span>
+        <span class="badge-mode">SITE: BGA</span>
+      </div>
+      <div class="window-controls">
+        <div class="win-btn min"></div>
+        <div class="win-btn max"></div>
+        <div class="win-btn close"></div>
+      </div>
+    </div>
+
+    <!-- Row 1: Tabs & Action Buttons -->
+    <div class="header-actions-row">
+      <div class="nav-tabs">
+        <div class="nav-tab active">모니터링</div>
+        <div class="nav-tab">패치</div>
+      </div>
+      <div class="action-buttons">
+        <button class="btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          새로고침
+        </button>
+        <button class="btn btn-primary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          배포 등록
+        </button>
+        <button class="btn btn-emerald">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+          에이전트 배포
+        </button>
+      </div>
+    </div>
+
+    <!-- Row 2: Title, Central Servers & 6-Column Status Grid -->
+    <div class="header-status-row">
+      <div class="title-area">
+        <h1>BGA 버전 모니터링</h1>
+      </div>
+
+      <div class="server-cards">
+        <div class="server-card">
+          <span class="type">중앙 Main</span>
+          <span class="version">v2.1.0</span>
+        </div>
+        <div class="server-card">
+          <span class="type">중앙 Vision</span>
+          <span class="version">v2.1.0</span>
+        </div>
+      </div>
+
+      <!-- 6-Column Full Width Status Cards -->
+      <div class="status-grid">
+        <div class="status-card">
+          <div class="chip-dot" style="background: var(--status-uptodate);"></div>
+          <span class="chip-label">일치</span>
+          <span class="chip-count">48</span>
+        </div>
+        <div class="status-card">
+          <div class="chip-dot" style="background: var(--status-mismatch);"></div>
+          <span class="chip-label">불일치</span>
+          <span class="chip-count">6</span>
+        </div>
+        <div class="status-card">
+          <div class="chip-dot" style="background: var(--status-pending);"></div>
+          <span class="chip-label">적용대기</span>
+          <span class="chip-count">2</span>
+        </div>
+        <div class="status-card">
+          <div class="chip-dot" style="background: var(--status-failed);"></div>
+          <span class="chip-label">실패</span>
+          <span class="chip-count">1</span>
+        </div>
+        <div class="status-card">
+          <div class="chip-dot" style="background: var(--status-noresponse);"></div>
+          <span class="chip-label">무응답</span>
+          <span class="chip-count">3</span>
+        </div>
+        <div class="status-card">
+          <div class="chip-dot" style="background: var(--status-notinstalled);"></div>
+          <span class="chip-label">미설치</span>
+          <span class="chip-count">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 3: Equipment Data Grid -->
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 110px;">설비</th>
+            <th>Main</th>
+            <th>Vision1</th>
+            <th>Vision2</th>
+            <th>Vision3</th>
+            <th>Vision4</th>
+            <th>Vision5</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="unit-cell">MC-01</td>
+            <td>
+              <div class="cell-badge badge-uptodate">
+                <span class="version-text">v2.1.0</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-uptodate">
+                <span class="version-text">v2.1.0</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-uptodate">
+                <span class="version-text">v2.1.0</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-uptodate">
+                <span class="version-text">v2.1.0</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-uptodate">
+                <span class="version-text">v2.1.0</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-empty">-</div>
+            </td>
+          </tr>
+          <tr>
+            <td class="unit-cell">MC-02</td>
+            <td>
+              <div class="cell-badge badge-pending">
+                <span class="version-text">v2.0.3</span>
+                <span class="state-label">적용대기</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-uptodate">
+                <span class="version-text">v2.1.0</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-uptodate">
+                <span class="version-text">v2.1.0</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-uptodate">
+                <span class="version-text">v2.1.0</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-pending">
+                <span class="version-text">v2.0.3</span>
+                <span class="state-label">적용대기</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-empty">-</div>
+            </td>
+          </tr>
+          <tr>
+            <td class="unit-cell">MC-03</td>
+            <td>
+              <div class="cell-badge badge-mismatch">
+                <span class="version-text">v1.9.8</span>
+                <span class="state-label">불일치</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-mismatch">
+                <span class="version-text">v1.9.8</span>
+                <span class="state-label">불일치</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-mismatch">
+                <span class="version-text">v1.9.8</span>
+                <span class="state-label">불일치</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-mismatch">
+                <span class="version-text">v1.9.8</span>
+                <span class="state-label">불일치</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-failed">
+                <span class="version-text">v1.9.8</span>
+                <span class="state-label">실패</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-empty">-</div>
+            </td>
+          </tr>
+          <tr>
+            <td class="unit-cell">MC-04</td>
+            <td>
+              <div class="cell-badge badge-noresponse">
+                <span class="version-text">v2.1.0</span>
+                <span class="state-label">무응답</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-noresponse">
+                <span class="version-text">v2.1.0</span>
+                <span class="state-label">무응답</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-uptodate">
+                <span class="version-text">v2.1.0</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-uptodate">
+                <span class="version-text">v2.1.0</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-uptodate">
+                <span class="version-text">v2.1.0</span>
+              </div>
+            </td>
+            <td>
+              <div class="cell-badge badge-empty">-</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Row 4: Status Bar Footer -->
+    <div class="footer-bar">
+      <div class="footer-left">
+        <span>중앙: \\55.60.233.161\e\AutoPatch\Distribution</span>
+        <span>엑셀: D:\AutoPatch\BGA_EquipList.xlsx (BGA 시트)</span>
+        <span class="footer-message">MC-03 V4 패치 재시도 대기 중</span>
+      </div>
+      <div class="footer-right">
+        자동 갱신 60초 · 마지막 갱신 10:48:20
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

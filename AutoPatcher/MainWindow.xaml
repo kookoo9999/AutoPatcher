@@ -16,9 +16,9 @@
 
         <!-- 모니터링 셀: 1줄 로컬 버전, 2줄 상태(일치 외), 배경색 = 상태 -->
         <DataTemplate x:Key="MonitorCellTemplate">
-            <Border x:Name="bd" Background="Transparent" ToolTip="{Binding Detail}" ToolTipService.ShowDuration="60000">
+            <Border x:Name="bd" Background="Transparent" CornerRadius="4" Margin="2,2" ToolTip="{Binding Detail}" ToolTipService.ShowDuration="60000">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <TextBlock Text="{Binding Text}" Foreground="White" FontWeight="Bold" FontSize="15" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding Text}" Foreground="White" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center"/>
                     <TextBlock x:Name="lbl" Text="{Binding StateLabel}" Foreground="White" FontSize="10" Opacity="0.9" HorizontalAlignment="Center"/>
                 </StackPanel>
             </Border>
@@ -48,44 +48,146 @@
         </DataTemplate>
 
         <Style x:Key="MonChipBox" TargetType="Border">
-            <Setter Property="Width" Value="14"/>
-            <Setter Property="Height" Value="14"/>
+            <Setter Property="Width" Value="12"/>
+            <Setter Property="Height" Value="12"/>
             <Setter Property="CornerRadius" Value="3"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="12,0,6,0"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
         </Style>
         <Style x:Key="MonChipText" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#F5EBDC"/>
             <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
         <Style x:Key="MonChipCount" TargetType="TextBlock" BasedOn="{StaticResource MonChipText}">
             <Setter Property="FontSize" Value="20"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Margin" Value="8,0,0,0"/>
+            <Setter Property="FontWeight" Value="ExtraBold"/>
+            <Setter Property="Margin" Value="4,0,0,0"/>
         </Style>
         <Style x:Key="MonServerBox" TargetType="Border">
             <Setter Property="Background" Value="#24303F"/>
-            <Setter Property="BorderBrush" Value="#36465C"/>
+            <Setter Property="BorderBrush" Value="#3B4A60"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,6"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
+
+        <!-- 현대적인 대시보드 버튼 템플릿 및 스타일 -->
         <Style x:Key="MonButton" TargetType="Button">
             <Setter Property="Background" Value="#3B4A60"/>
             <Setter Property="Foreground" Value="#F5EBDC"/>
             <Setter Property="BorderBrush" Value="#50627C"/>
+            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="MinWidth" Value="84"/>
-            <Setter Property="Height" Value="30"/>
-            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="MinWidth" Value="88"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="14,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#4B5E78"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#687D9D"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#2D3A4B"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
+
+        <Style x:Key="MonButtonPrimary" TargetType="Button" BasedOn="{StaticResource MonButton}">
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="BorderBrush" Value="#3B82F6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#1D4ED8"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#60A5FA"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#1E40AF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="MonButtonEmerald" TargetType="Button" BasedOn="{StaticResource MonButton}">
+            <Setter Property="Background" Value="#059669"/>
+            <Setter Property="BorderBrush" Value="#10B981"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#047857"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#34D399"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#065F46"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="MonCenterText" TargetType="TextBlock">
             <Setter Property="HorizontalAlignment" Value="Center"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="#F5EBDC"/>
         </Style>
     </Window.Resources>
     <Grid>
@@ -114,10 +216,10 @@
                         <!-- 헤더: 상단 버튼 3개 / 하단 사이트·중앙 버전·상태별 대수 -->
                         <Border Grid.Row="0" BorderBrush="#2E3A4D" BorderThickness="0,0,0,1" Padding="16,10,16,12">
                             <StackPanel>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,10">
                                     <Button x:Name="btnMonRefresh" Content="새로고침" Style="{StaticResource MonButton}" Click="btnMonRefresh_Click"/>
-                                    <Button x:Name="btnMonDeploy" Content="배포 등록" Style="{StaticResource MonButton}" FontWeight="Bold" Margin="8,0,0,0" Click="btnMonDeploy_Click"/>
-                                    <Button x:Name="btnMonAgentDeploy" Content="에이전트 배포" Style="{StaticResource MonButton}" FontWeight="Bold" Margin="8,0,0,0" Click="btnMonAgentDeploy_Click"/>
+                                    <Button x:Name="btnMonDeploy" Content="배포 등록" Style="{StaticResource MonButtonPrimary}" Margin="10,0,0,0" Click="btnMonDeploy_Click"/>
+                                    <Button x:Name="btnMonAgentDeploy" Content="에이전트 배포" Style="{StaticResource MonButtonEmerald}" Margin="10,0,0,0" Click="btnMonAgentDeploy_Click"/>
                                 </StackPanel>
 
                                 <DockPanel LastChildFill="True">
@@ -192,22 +294,24 @@
                         </Border>
 
                         <!-- 설비 그리드 (설비가 많으면 세로 스크롤) -->
-                        <DataGrid Grid.Row="1" x:Name="MonitorGrid" Margin="16,10,16,10"
+                        <DataGrid Grid.Row="1" x:Name="MonitorGrid" Margin="16,12,16,12"
                                   AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
                                   CanUserResizeRows="False" CanUserSortColumns="False" CanUserReorderColumns="False"
-                                  HeadersVisibility="Column" SelectionUnit="Cell" RowHeight="38" ColumnHeaderHeight="34"
+                                  HeadersVisibility="Column" SelectionUnit="Cell" RowHeight="42" ColumnHeaderHeight="36"
                                   VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                  Background="#1B2533" RowBackground="#2B3442" BorderThickness="0"
-                                  GridLinesVisibility="All" HorizontalGridLinesBrush="#1B2533" VerticalGridLinesBrush="#1B2533">
+                                  Background="#1B2533" RowBackground="#202C3D" AlternatingRowBackground="#253346"
+                                  BorderBrush="#2E3A4D" BorderThickness="1"
+                                  GridLinesVisibility="All" HorizontalGridLinesBrush="#141C27" VerticalGridLinesBrush="#141C27">
                             <DataGrid.Resources>
                                 <Style TargetType="DataGridColumnHeader">
-                                    <Setter Property="Background" Value="#4A5568"/>
+                                    <Setter Property="Background" Value="#334155"/>
                                     <Setter Property="Foreground" Value="#F5EBDC"/>
                                     <Setter Property="FontWeight" Value="Bold"/>
-                                    <Setter Property="FontSize" Value="14"/>
+                                    <Setter Property="FontSize" Value="13"/>
                                     <Setter Property="HorizontalContentAlignment" Value="Center"/>
-                                    <Setter Property="BorderBrush" Value="#1B2533"/>
-                                    <Setter Property="BorderThickness" Value="0,0,1,0"/>
+                                    <Setter Property="VerticalContentAlignment" Value="Center"/>
+                                    <Setter Property="BorderBrush" Value="#2E3A4D"/>
+                                    <Setter Property="BorderThickness" Value="0,0,1,1"/>
                                 </Style>
                                 <Style TargetType="DataGridCell">
                                     <Setter Property="Background" Value="Transparent"/>
@@ -221,9 +325,21 @@
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
+                                <Style x:Key="MonEquipmentCellStyle" TargetType="DataGridCell">
+                                    <Setter Property="Background" Value="#1A2534"/>
+                                    <Setter Property="Foreground" Value="#F5EBDC"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#1A2534"/>
+                                            <Setter Property="Foreground" Value="#F5EBDC"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
                             </DataGrid.Resources>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="설비" Binding="{Binding InspectionUnit}" Width="100" ElementStyle="{StaticResource MonCenterText}"/>
+                                <DataGridTextColumn Header="설비" Binding="{Binding InspectionUnit}" Width="110" ElementStyle="{StaticResource MonCenterText}" CellStyle="{StaticResource MonEquipmentCellStyle}"/>
                                 <DataGridTemplateColumn Header="Main" Width="*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate><ContentPresenter Content="{Binding M1}" ContentTemplate="{StaticResource MonitorCellTemplate}"/></DataTemplate>
@@ -258,7 +374,7 @@
                         </DataGrid>
 
                         <!-- 상태줄: 중앙 경로 / 엑셀 / 경고 / 갱신 시각 -->
-                        <Border Grid.Row="2" Background="#141C27" Padding="16,0">
+                        <Border Grid.Row="2" Background="#141C27" BorderBrush="#2E3A4D" BorderThickness="0,1,0,0" Padding="16,0">
                             <DockPanel LastChildFill="True">
                                 <TextBlock DockPanel.Dock="Right" x:Name="lblMonUpdated" Text="-" Foreground="#9FB0C4" FontSize="12" VerticalAlignment="Center"/>
                                 <TextBlock DockPanel.Dock="Left" x:Name="lblMonCentral" Foreground="#9FB0C4" FontSize="12" VerticalAlignment="Center"/>
